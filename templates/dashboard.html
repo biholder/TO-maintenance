@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Дашборд{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Дашборд</h1>
+    <div class="sub">Общее состояние парка дронов</div>
+  </div>
+</div>
+
+<div class="cards-row">
+  <div class="card stat-card">
+    <div class="value">{{ total }}</div>
+    <div class="label">Всего дронов</div>
+  </div>
+  <div class="card stat-card">
+    <div class="value">{{ by_status.get('active', 0) }}</div>
+    <div class="label">В строю</div>
+  </div>
+  <div class="card stat-card">
+    <div class="value">{{ by_status.get('maintenance', 0) }}</div>
+    <div class="label">На обслуживании</div>
+  </div>
+  <div class="card stat-card">
+    <div class="value">{{ by_status.get('written_off', 0) }}</div>
+    <div class="label">Списано</div>
+  </div>
+</div>
+
+<div class="section-title">Требуют внимания (ресурс запчастей)</div>
+{% if attention_parts %}
+<table class="card-table">
+  <thead>
+    <tr><th>Запчасть</th><th>Дрон</th><th>Остаток, ч</th><th>Остаток, циклы</th><th>Статус</th></tr>
+  </thead>
+  <tbody>
+    {% for p in attention_parts %}
+    <tr>
+      <td><a href="{{ url_for('part_edit', part_id=p.id) }}">{{ p.name }}</a>{% if p.serial_number %} <span class="tag">{{ p.serial_number }}</span>{% endif %}</td>
+      <td><a href="{{ url_for('drone_detail', drone_id=p.drone.id) }}">{{ p.drone.tail_number }}</a></td>
+      <td>{{ p.remaining_hours if p.remaining_hours is not none else '—' }}</td>
+      <td>{{ p.remaining_cycles if p.remaining_cycles is not none else '—' }}</td>
+      <td>
+        {% if p.resource_status == 'overdue' %}<span class="badge badge-danger">Ресурс исчерпан</span>
+        {% elif p.resource_status == 'warning' %}<span class="badge badge-warn">Близко к пределу</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card empty">Запчастей, требующих внимания, нет.</div>
+{% endif %}
+
+<div class="section-title">Последние полёты</div>
+{% if recent_flights %}
+<table class="card-table">
+  <thead>
+    <tr><th>Дата</th><th>Дрон</th><th>Наработка, ч</th><th>Пилот</th></tr>
+  </thead>
+  <tbody>
+    {% for f in recent_flights %}
+    <tr>
+      <td>{{ f.date.strftime('%d.%m.%Y') }}</td>
+      <td><a href="{{ url_for('drone_detail', drone_id=f.drone.id) }}">{{ f.drone.tail_number }}</a></td>
+      <td>{{ f.duration_hours }}</td>
+      <td>{{ f.pilot or '—' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card empty">Полётов пока не зарегистрировано.</div>
+{% endif %}
+{% endblock %}

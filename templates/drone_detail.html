@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}{{ drone.tail_number }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ drone.tail_number }} <span class="tag">{{ drone.type }}</span></h1>
+    <div class="sub">{{ drone.serial_number or 'без серийного номера' }}</div>
+  </div>
+  <div class="form-actions">
+    <a class="btn btn-secondary" href="{{ url_for('drone_edit', drone_id=drone.id) }}">Изменить</a>
+    <form class="inline-form" method="post" action="{{ url_for('drone_delete', drone_id=drone.id) }}" onsubmit="return confirm('Удалить дрон {{ drone.tail_number }}? Это действие необратимо.');">
+      <button class="btn btn-danger" type="submit">Удалить</button>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom: 22px;">
+  <div class="meta-list">
+    <div class="item"><div class="value">{{ drone.flight_hours }}</div><div class="label">Наработка, ч</div></div>
+    <div class="item"><div class="value">{{ drone.flight_cycles }}</div><div class="label">Циклы (полёты)</div></div>
+    <div class="item">
+      <div class="value">
+        {% if drone.status == 'active' %}<span class="badge badge-ok">{{ drone.status_label }}</span>
+        {% elif drone.status == 'maintenance' %}<span class="badge badge-warn">{{ drone.status_label }}</span>
+        {% else %}<span class="badge badge-muted">{{ drone.status_label }}</span>{% endif %}
+      </div>
+      <div class="label">Статус</div>
+    </div>
+  </div>
+  {% if drone.notes %}<div class="help-text">{{ drone.notes }}</div>{% endif %}
+</div>
+
+<div class="section-title">
+  Установленные запчасти
+  <a class="btn btn-secondary btn-sm" style="float:right" href="{{ url_for('part_new') }}">+ Новая запчасть</a>
+</div>
+{% if drone.active_parts %}
+<table class="card-table">
+  <thead><tr><th>Наименование</th><th>С/н</th><th>Наработка, ч</th><th>Остаток, ч</th><th>Статус</th><th></th></tr></thead>
+  <tbody>
+    {% for p in drone.active_parts %}
+    <tr>
+      <td><a href="{{ url_for('part_edit', part_id=p.id) }}">{{ p.name }}</a></td>
+      <td>{{ p.serial_number or '—' }}</td>
+      <td>{{ p.current_hours }}{% if p.resource_hours %} / {{ p.resource_hours }}{% endif %}</td>
+      <td>{{ p.remaining_hours if p.remaining_hours is not none else '—' }}</td>
+      <td>
+        {% if p.resource_status == 'overdue' %}<span class="badge badge-danger">Исчерпан</span>
+        {% elif p.resource_status == 'warning' %}<span class="badge badge-warn">Внимание</span>
+        {% elif p.resource_status == 'ok' %}<span class="badge badge-ok">Норма</span>
+        {% else %}<span class="badge badge-muted">—</span>{% endif %}
+      </td>
+      <td>
+        <form class="inline-form" method="post" action="{{ url_for('part_remove', part_id=p.id) }}" onsubmit="return confirm('Снять запчасть с дрона?');">
+          <button class="btn btn-secondary btn-sm" type="submit">Снять</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card empty">На дрон не установлено ни одной запчасти.</div>
+{% endif %}
+
+<div class="section-title">
+  Журнал полётов
+  <a class="btn btn-secondary btn-sm" style="float:right" href="{{ url_for('flight_new', drone_id=drone.id) }}">+ Добавить полёт</a>
+</div>
+{% if drone.flights %}
+<table class="card-table">
+  <thead><tr><th>Дата</th><th>Наработка, ч</th><th>Пилот</th><th></th></tr></thead>
+  <tbody>
+    {% for f in drone.flights[:15] %}
+    <tr>
+      <td>{{ f.date.strftime('%d.%m.%Y') }}</td>
+      <td>{{ f.duration_hours }}</td>
+      <td>{{ f.pilot or '—' }}</td>
+      <td>
+        <form class="inline-form" method="post" action="{{ url_for('flight_delete', flight_id=f.id) }}" onsubmit="return confirm('Удалить запись о полёте?');">
+          <button class="btn btn-secondary btn-sm" type="submit">Удалить</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if drone.flights|length > 15 %}
+<div class="help-text"><a href="{{ url_for('flights_list', drone_id=drone.id) }}">Показать все полёты ({{ drone.flights|length }})</a></div>
+{% endif %}
+{% else %}
+<div class="card empty">Полётов ещё не было.</div>
+{% endif %}
+
+<div class="section-title">Журнал обслуживания</div>
+<div class="card" style="margin-bottom: 14px;">
+  <form method="post" action="{{ url_for('service_new', drone_id=drone.id) }}" class="form-grid">
+    <div class="field">
+      <label>Дата</label>
+      <input type="date" name="date" value="{{ today }}">
+    </div>
+    <div class="field">
+      <label>Категория</label>
+      <select name="category">
+        {% for key, label in SERVICE_CATEGORIES.items() %}
+        <option value="{{ key }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field full">
+      <label>Описание работ</label>
+      <textarea name="description" placeholder="Что было сделано"></textarea>
+    </div>
+    <div class="form-actions full">
+      <button class="btn" type="submit">Добавить запись</button>
+    </div>
+  </form>
+</div>
+
+{% if drone.service_records %}
+<table class="card-table">
+  <thead><tr><th>Дата</th><th>Категория</th><th>Наработка, ч</th><th>Описание</th><th></th></tr></thead>
+  <tbody>
+    {% for r in drone.service_records %}
+    <tr>
+      <td>{{ r.date.strftime('%d.%m.%Y') }}</td>
+      <td>{{ r.category_label }}</td>
+      <td>{{ r.hours_at_event if r.hours_at_event is not none else '—' }}</td>
+      <td>{{ r.description or '—' }}</td>
+      <td>
+        <form class="inline-form" method="post" action="{{ url_for('service_delete', record_id=r.id) }}" onsubmit="return confirm('Удалить запись?');">
+          <button class="btn btn-secondary btn-sm" type="submit">Удалить</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card empty">Записей об обслуживании ещё нет.</div>
+{% endif %}
+{% endblock %}

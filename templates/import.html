@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Импорт из таблиц{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Импорт данных из таблиц</h1></div>
+
+<p class="help-text" style="margin-bottom:18px;">
+  Загрузите файл CSV или Excel (.xlsx). Скачайте шаблон, чтобы гарантированно получить нужные заголовки столбцов,
+  или используйте свою таблицу — заголовки распознаются автоматически (регистр и лишние пробелы не важны).
+</p>
+
+<div class="import-box">
+  <form method="post" enctype="multipart/form-data">
+    <div class="field" style="margin-bottom:14px;">
+      <label>Что загружаем</label>
+      <select name="kind" required>
+        <option value="drones" {{ 'selected' if last_kind == 'drones' }}>Дроны</option>
+        <option value="flights" {{ 'selected' if last_kind == 'flights' }}>Полёты (наработка)</option>
+        <option value="parts" {{ 'selected' if last_kind == 'parts' }}>Запчасти</option>
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:14px;">
+      <label>Файл (.csv, .xlsx)</label>
+      <input type="file" name="file" accept=".csv,.xlsx,.xls" required>
+    </div>
+    <div class="form-actions">
+      <button class="btn" type="submit">Импортировать</button>
+    </div>
+  </form>
+</div>
+
+<div class="section-title">Шаблоны таблиц</div>
+<div class="card">
+  <p style="margin-top:0;">Скачайте пустой шаблон с правильными заголовками столбцов:</p>
+  <div style="display:flex; gap:10px;">
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('import_template', kind='drones') }}">Шаблон: Дроны</a>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('import_template', kind='flights') }}">Шаблон: Полёты</a>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('import_template', kind='parts') }}">Шаблон: Запчасти</a>
+  </div>
+  <div class="help-text" style="margin-top:14px;">
+    <strong>Дроны:</strong> Бортовой номер, Тип, Серийный номер, Наработка (ч), Наработка (циклы), Дата ввода в эксплуатацию, Статус, Примечания.<br>
+    <strong>Полёты:</strong> Бортовой номер (должен уже существовать), Дата, Наработка за полёт (ч), Пилот, Примечания.<br>
+    <strong>Запчасти:</strong> Наименование, Серийный номер, Ресурс (ч), Ресурс (циклы), Бортовой номер (необязательно), Наработка до установки (ч), Наработка борта при установке (ч), Дата установки, Статус, Примечания.
+  </div>
+</div>
+
+{% if result_errors is defined %}
+<div class="section-title">Результат импорта</div>
+<div class="card">
+  <p style="margin-top:0;">Успешно добавлено: <strong>{{ result_created }}</strong></p>
+  {% if result_errors %}
+  <p>Ошибки ({{ result_errors|length }}):</p>
+  <ul>
+    {% for err in result_errors %}
+    <li>{{ err }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>Ошибок нет.</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Новый полёт{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Добавить полёт</h1></div>
+
+<form class="form-grid" method="post">
+  <div class="field">
+    <label>Дрон *</label>
+    <select name="drone_id" required>
+      <option value="">— выберите —</option>
+      {% for d in drones %}
+      <option value="{{ d.id }}" {{ 'selected' if form.get('drone_id')|string == d.id|string }}>{{ d.tail_number }} ({{ d.type }})</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label>Дата *</label>
+    <input type="date" name="date" value="{{ form.get('date') or today }}" required>
+  </div>
+  <div class="field">
+    <label>Наработка за полёт, ч *</label>
+    <input type="text" name="duration_hours" value="{{ form.get('duration_hours') or '' }}" placeholder="напр. 0.75" required>
+  </div>
+  <div class="field">
+    <label>Пилот</label>
+    <input type="text" name="pilot" value="{{ form.get('pilot') or '' }}">
+  </div>
+  <div class="field full">
+    <label>Примечания</label>
+    <textarea name="notes">{{ form.get('notes') or '' }}</textarea>
+  </div>
+  <div class="form-actions full">
+    <button class="btn" type="submit">Сохранить</button>
+    <a class="btn btn-secondary" href="{{ url_for('flights_list') }}">Отмена</a>
+  </div>
+</form>
+{% endblock %}

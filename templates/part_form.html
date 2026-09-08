@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Изменить запчасть' if part else 'Новая запчасть' }}{% endblock %}
+{% block content %}
+<div class="page-header"><h1>{{ 'Изменить запчасть' if part else 'Новая запчасть' }}</h1></div>
+
+<form class="form-grid" method="post">
+  <div class="field">
+    <label>Наименование *</label>
+    <input type="text" name="name" value="{{ (form.get('name') if form else part.name) or '' }}" required>
+  </div>
+  <div class="field">
+    <label>Серийный номер</label>
+    <input type="text" name="serial_number" value="{{ (form.get('serial_number') if form else part.serial_number) or '' }}">
+  </div>
+  <div class="field">
+    <label>Ресурс, ч</label>
+    <input type="text" name="resource_hours" value="{{ (form.get('resource_hours') if form else part.resource_hours) or '' }}" placeholder="напр. 100">
+  </div>
+  <div class="field">
+    <label>Ресурс, циклы</label>
+    <input type="text" name="resource_cycles" value="{{ (form.get('resource_cycles') if form else part.resource_cycles) or '' }}">
+  </div>
+  {% if not part %}
+  <div class="field">
+    <label>Наработка до установки, ч</label>
+    <input type="text" name="hours_before_install" value="{{ form.get('hours_before_install') or 0 }}">
+    <div class="help-text">Если запчасть уже была в использовании.</div>
+  </div>
+  <div class="field">
+    <label>Сразу установить на дрон</label>
+    <select name="drone_id">
+      <option value="">Оставить на складе</option>
+      {% for d in drones %}
+      <option value="{{ d.id }}" {{ 'selected' if form.get('drone_id')|string == d.id|string }}>{{ d.tail_number }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <input type="hidden" name="status" value="installed">
+  {% endif %}
+  <div class="field full">
+    <label>Примечания</label>
+    <textarea name="notes">{{ (form.get('notes') if form else part.notes) or '' }}</textarea>
+  </div>
+  <div class="form-actions full">
+    <button class="btn" type="submit">Сохранить</button>
+    <a class="btn btn-secondary" href="{{ url_for('parts_list') }}">Отмена</a>
+    {% if part %}
+    <form class="inline-form" method="post" action="{{ url_for('part_delete', part_id=part.id) }}" onsubmit="return confirm('Удалить запчасть безвозвратно?');">
+      <button class="btn btn-danger" type="submit">Удалить</button>
+    </form>
+    {% endif %}
+  </div>
+</form>
+
+{% if part and part.status == 'installed' %}
+<div class="section-title">Текущая установка</div>
+<div class="card">
+  <div class="meta-list">
+    <div class="item"><div class="value">{{ part.drone.tail_number }}</div><div class="label">Установлена на</div></div>
+    <div class="item"><div class="value">{{ part.current_hours }}</div><div class="label">Наработка, ч</div></div>
+    <div class="item"><div class="value">{{ part.remaining_hours if part.remaining_hours is not none else '—' }}</div><div class="label">Остаток, ч</div></div>
+  </div>
+  <form method="post" action="{{ url_for('part_remove', part_id=part.id) }}" style="margin-top:14px;" onsubmit="return confirm('Снять запчасть с дрона?');">
+    <button class="btn btn-secondary btn-sm" type="submit">Снять с дрона</button>
+    <label style="font-size:12.5px; color: var(--text-muted); margin-left: 10px;">
+      <input type="checkbox" name="write_off" value="1"> сразу списать
+    </label>
+  </form>
+</div>
+{% elif part %}
+<div class="section-title">Установка на дрон</div>
+<div class="card">
+  <form method="post" action="{{ url_for('part_install', part_id=part.id) }}" class="filters">
+    <select name="drone_id" required>
+      <option value="">— выберите дрон —</option>
+      {% for d in drones %}
+      <option value="{{ d.id }}">{{ d.tail_number }} ({{ d.type }})</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-secondary btn-sm" type="submit">Установить</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

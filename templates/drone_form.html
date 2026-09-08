@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Изменить дрон' if drone else 'Новый дрон' }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ 'Изменить дрон' if drone else 'Новый дрон' }}</h1>
+  </div>
+</div>
+
+<form class="form-grid" method="post">
+  <div class="field">
+    <label>Бортовой номер *</label>
+    <input type="text" name="tail_number" value="{{ (form.get('tail_number') if form else drone.tail_number) or '' }}" required>
+  </div>
+  <div class="field">
+    <label>Тип / модель *</label>
+    <input type="text" name="type" list="type-list" value="{{ (form.get('type') if form else drone.type) or '' }}" required>
+    <datalist id="type-list">
+      {% for t in (drones_types or []) %}<option value="{{ t }}">{% endfor %}
+    </datalist>
+  </div>
+  <div class="field">
+    <label>Серийный номер</label>
+    <input type="text" name="serial_number" value="{{ (form.get('serial_number') if form else drone.serial_number) or '' }}">
+  </div>
+  <div class="field">
+    <label>Статус</label>
+    <select name="status">
+      {% set current_status = form.get('status') if form else (drone.status if drone else 'active') %}
+      {% for key, label in DRONE_STATUSES.items() %}
+      <option value="{{ key }}" {{ 'selected' if current_status == key }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label>Наработка на начало учёта, ч</label>
+    <input type="text" name="initial_hours" value="{{ (form.get('initial_hours') if form else drone.initial_hours) if (form or drone) else 0 }}">
+  </div>
+  <div class="field">
+    <label>Наработка на начало учёта, циклы</label>
+    <input type="text" name="initial_cycles" value="{{ (form.get('initial_cycles') if form else drone.initial_cycles) if (form or drone) else 0 }}">
+  </div>
+  <div class="field">
+    <label>Дата ввода в эксплуатацию</label>
+    <input type="date" name="commissioned_date" value="{{ (form.get('commissioned_date') if form else (drone.commissioned_date.isoformat() if drone and drone.commissioned_date else '')) or '' }}">
+  </div>
+  <div class="field full">
+    <label>Примечания</label>
+    <textarea name="notes">{{ (form.get('notes') if form else drone.notes) or '' }}</textarea>
+  </div>
+  <div class="form-actions full">
+    <button class="btn" type="submit">Сохранить</button>
+    <a class="btn btn-secondary" href="{{ url_for('drone_detail', drone_id=drone.id) if drone else url_for('drones_list') }}">Отмена</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Полёты{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Полёты</h1>
+    <div class="sub">{{ flights|length }} записей{% if drone_id %} · {{ (drones|selectattr('id','equalto',drone_id)|first).tail_number }}{% endif %}</div>
+  </div>
+  <a class="btn" href="{{ url_for('flight_new', drone_id=drone_id) if drone_id else url_for('flight_new') }}">+ Добавить полёт</a>
+</div>
+
+<form class="filters" method="get">
+  <select name="drone_id" onchange="this.form.submit()">
+    <option value="">Все дроны</option>
+    {% for d in drones %}
+    <option value="{{ d.id }}" {{ 'selected' if drone_id == d.id }}>{{ d.tail_number }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if flights %}
+<table class="card-table">
+  <thead><tr><th>Дата</th><th>Дрон</th><th>Наработка, ч</th><th>Пилот</th><th>Примечания</th><th></th></tr></thead>
+  <tbody>
+    {% for f in flights %}
+    <tr>
+      <td>{{ f.date.strftime('%d.%m.%Y') }}</td>
+      <td><a href="{{ url_for('drone_detail', drone_id=f.drone.id) }}">{{ f.drone.tail_number }}</a></td>
+      <td>{{ f.duration_hours }}</td>
+      <td>{{ f.pilot or '—' }}</td>
+      <td>{{ f.notes or '—' }}</td>
+      <td>
+        <form class="inline-form" method="post" action="{{ url_for('flight_delete', flight_id=f.id) }}" onsubmit="return confirm('Удалить запись о полёте?');">
+          <button class="btn btn-secondary btn-sm" type="submit">Удалить</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card empty">Полётов пока не зарегистрировано.</div>
+{% endif %}
+{% endblock %}

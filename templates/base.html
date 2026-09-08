@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Учёт обслуживания{% endblock %} — Парк дронов</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Парк дронов · ТО</div>
+      <nav>
+        <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' }}">Дашборд</a>
+        <a href="{{ url_for('drones_list') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('drone') }}">Дроны</a>
+        <a href="{{ url_for('flights_list') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('flight') }}">Полёты</a>
+        <a href="{{ url_for('parts_list') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('part') }}">Запчасти</a>
+        <a href="{{ url_for('import_data') }}" class="{{ 'active' if request.endpoint == 'import_data' }}">Импорт из таблиц</a>
+      </nav>
+    </aside>
+    <main class="main">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="flash flash-{{ 'error' if category == 'error' else 'success' }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

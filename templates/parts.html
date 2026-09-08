@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Запчасти{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Запчасти</h1>
+    <div class="sub">{{ parts|length }} шт.</div>
+  </div>
+  <a class="btn" href="{{ url_for('part_new') }}">+ Добавить запчасть</a>
+</div>
+
+<form class="filters" method="get">
+  <select name="status" onchange="this.form.submit()">
+    <option value="">Все статусы</option>
+    {% for key, label in PART_STATUSES.items() %}
+    <option value="{{ key }}" {{ 'selected' if status_filter == key }}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if parts %}
+<table class="card-table">
+  <thead><tr><th>Наименование</th><th>С/н</th><th>Дрон</th><th>Наработка, ч</th><th>Остаток</th><th>Статус</th><th></th></tr></thead>
+  <tbody>
+    {% for p in parts %}
+    <tr>
+      <td><a href="{{ url_for('part_edit', part_id=p.id) }}">{{ p.name }}</a></td>
+      <td>{{ p.serial_number or '—' }}</td>
+      <td>{% if p.drone %}<a href="{{ url_for('drone_detail', drone_id=p.drone.id) }}">{{ p.drone.tail_number }}</a>{% else %}—{% endif %}</td>
+      <td>{{ p.current_hours }}{% if p.resource_hours %} / {{ p.resource_hours }}{% endif %}</td>
+      <td>
+        {% if p.resource_status == 'overdue' %}<span class="badge badge-danger">Исчерпан</span>
+        {% elif p.resource_status == 'warning' %}<span class="badge badge-warn">Внимание</span>
+        {% elif p.resource_status == 'ok' %}<span class="badge badge-ok">Норма</span>
+        {% else %}<span class="badge badge-muted">—</span>{% endif %}
+      </td>
+      <td>
+        {% if p.status == 'installed' %}<span class="badge badge-ok">{{ p.status_label }}</span>
+        {% elif p.status == 'in_stock' %}<span class="badge badge-muted">{{ p.status_label }}</span>
+        {% else %}<span class="badge badge-danger">{{ p.status_label }}</span>{% endif %}
+      </td>
+      <td>
+        {% if p.status == 'in_stock' %}
+        <form class="inline-form" method="post" action="{{ url_for('part_install', part_id=p.id) }}">
+          <select name="drone_id" required style="width:auto; display:inline-block; padding:4px 6px; font-size:12.5px;">
+            <option value="">на дрон…</option>
+            {% for d in (all_drones or []) %}<option value="{{ d.id }}">{{ d.tail_number }}</option>{% endfor %}
+          </select>
+          <button class="btn btn-secondary btn-sm" type="submit">Установить</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card empty">Запчастей пока нет.</div>
+{% endif %}
+{% endblock %}
