@@ -1,6 +1,7 @@
 import csv
 import io
 import os
+import sys
 from datetime import date, datetime
 
 from flask import Flask, flash, redirect, render_template, request, Response, url_for
@@ -17,18 +18,32 @@ from models import (
     ServiceRecord,
 )
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+# При обычном запуске (python app.py) — папка с исходниками.
+# При запуске из собранного PyInstaller .exe — временная папка распаковки
+# (там же лежат шаблоны/статика, добавленные через --add-data).
+BASE_DIR = getattr(sys, "_MEIPASS", os.path.abspath(os.path.dirname(__file__)))
+
+# База данных должна жить рядом с .exe (а не во временной папке, которая
+# удаляется после закрытия программы), поэтому путь для неё считаем отдельно.
+if getattr(sys, "frozen", False):
+    DATA_DIR = os.path.dirname(sys.executable)
+else:
+    DATA_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(
+        __name__,
+        template_folder=os.path.join(BASE_DIR, "templates"),
+        static_folder=os.path.join(BASE_DIR, "static"),
+    )
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(
-        BASE_DIR, "instance", "fleet.db"
+        DATA_DIR, "instance", "fleet.db"
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    os.makedirs(os.path.join(BASE_DIR, "instance"), exist_ok=True)
+    os.makedirs(os.path.join(DATA_DIR, "instance"), exist_ok=True)
     db.init_app(app)
 
     with app.app_context():
