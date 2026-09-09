@@ -16,6 +16,7 @@
         <option value="drones" {{ 'selected' if last_kind == 'drones' }}>Дроны</option>
         <option value="flights" {{ 'selected' if last_kind == 'flights' }}>Полёты (наработка)</option>
         <option value="parts" {{ 'selected' if last_kind == 'parts' }}>Запчасти</option>
+        <option value="trackers" {{ 'selected' if last_kind == 'trackers' }}>Трекеры</option>
       </select>
     </div>
     <div class="field" style="margin-bottom:14px;">
@@ -35,11 +36,13 @@
     <a class="btn btn-secondary btn-sm" href="{{ url_for('import_template', kind='drones') }}">Шаблон: Дроны</a>
     <a class="btn btn-secondary btn-sm" href="{{ url_for('import_template', kind='flights') }}">Шаблон: Полёты</a>
     <a class="btn btn-secondary btn-sm" href="{{ url_for('import_template', kind='parts') }}">Шаблон: Запчасти</a>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('import_template', kind='trackers') }}">Шаблон: Трекеры</a>
   </div>
   <div class="help-text" style="margin-top:14px;">
     <strong>Дроны:</strong> Бортовой номер, Тип, Серийный номер, Наработка (ч), Наработка (циклы), Дата ввода в эксплуатацию, Статус, Примечания.<br>
     <strong>Полёты:</strong> Бортовой номер (должен уже существовать), Дата, Наработка за полёт (ч), Пилот, Примечания.<br>
-    <strong>Запчасти:</strong> Наименование, Серийный номер, Ресурс (ч), Ресурс (циклы), Бортовой номер (необязательно), Наработка до установки (ч), Наработка борта при установке (ч), Дата установки, Статус, Примечания.
+    <strong>Запчасти:</strong> Наименование, Серийный номер, Ресурс (ч), Ресурс (циклы), Бортовой номер (необязательно), Наработка до установки (ч), Наработка борта при установке (ч), Дата установки, Статус, Примечания.<br>
+    <strong>Трекеры:</strong> Наименование, Серийный номер, Бортовой номер (необязательно), Статус, Дата активации, Поставщик, Номер договора, Начало договора, Окончание договора, Примечания.
   </div>
 </div>
 

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Изменить трекер' if tracker else 'Новый трекер' }}{% endblock %}
+{% block content %}
+<div class="page-header"><h1>{{ 'Изменить трекер' if tracker else 'Новый трекер' }}</h1></div>
+
+<form class="form-grid" method="post">
+  <div class="field">
+    <label>Наименование *</label>
+    <input type="text" name="name" value="{{ (form.get('name') if form else tracker.name) or '' }}" required>
+  </div>
+  <div class="field">
+    <label>Серийный номер / IMEI</label>
+    <input type="text" name="serial_number" value="{{ (form.get('serial_number') if form else tracker.serial_number) or '' }}">
+  </div>
+  <div class="field">
+    <label>Установлен на дрон</label>
+    <select name="drone_id">
+      <option value="">— не привязан —</option>
+      {% set current_drone_id = (form.get('drone_id') if form else (tracker.drone_id if tracker else None)) %}
+      {% for d in drones %}
+      <option value="{{ d.id }}" {{ 'selected' if current_drone_id|string == d.id|string }}>{{ d.tail_number }} ({{ d.type }})</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label>Статус активации</label>
+    <select name="status">
+      {% set current_status = form.get('status') if form else (tracker.status if tracker else 'not_activated') %}
+      {% for key, label in TRACKER_STATUSES.items() %}
+      <option value="{{ key }}" {{ 'selected' if current_status == key }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label>Дата активации</label>
+    <input type="date" name="activation_date" value="{{ (form.get('activation_date') if form else (tracker.activation_date.isoformat() if tracker and tracker.activation_date else '')) or '' }}">
+  </div>
+  <div class="field">
+    <label>Поставщик услуги</label>
+    <input type="text" name="provider" value="{{ (form.get('provider') if form else tracker.provider) or '' }}">
+  </div>
+  <div class="field">
+    <label>Номер договора</label>
+    <input type="text" name="contract_number" value="{{ (form.get('contract_number') if form else tracker.contract_number) or '' }}">
+  </div>
+  <div class="field">
+    <label>Начало действия договора</label>
+    <input type="date" name="contract_start" value="{{ (form.get('contract_start') if form else (tracker.contract_start.isoformat() if tracker and tracker.contract_start else '')) or '' }}">
+  </div>
+  <div class="field">
+    <label>Окончание действия договора</label>
+    <input type="date" name="contract_end" value="{{ (form.get('contract_end') if form else (tracker.contract_end.isoformat() if tracker and tracker.contract_end else '')) or '' }}">
+    <div class="help-text">Оставьте пустым, если договор бессрочный.</div>
+  </div>
+  <div class="field full">
+    <label>Примечания</label>
+    <textarea name="notes">{{ (form.get('notes') if form else tracker.notes) or '' }}</textarea>
+  </div>
+  <div class="form-actions full">
+    <button class="btn" type="submit">Сохранить</button>
+    <a class="btn btn-secondary" href="{{ url_for('trackers_list') }}">Отмена</a>
+    {% if tracker %}
+    <form class="inline-form" method="post" action="{{ url_for('tracker_delete', tracker_id=tracker.id) }}" onsubmit="return confirm('Удалить трекер безвозвратно?');">
+      <button class="btn btn-danger" type="submit">Удалить</button>
+    </form>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

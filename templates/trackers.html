@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Трекеры{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Трекеры</h1>
+    <div class="sub">{{ trackers|length }} шт. — статус активации и сроки договоров на использование</div>
+  </div>
+  <a class="btn" href="{{ url_for('tracker_new') }}">+ Добавить трекер</a>
+</div>
+
+<form class="filters" method="get">
+  <select name="status" onchange="this.form.submit()">
+    <option value="">Все статусы</option>
+    {% for key, label in TRACKER_STATUSES.items() %}
+    <option value="{{ key }}" {{ 'selected' if status_filter == key }}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if trackers %}
+<table class="card-table">
+  <thead>
+    <tr>
+      <th>Наименование</th><th>С/н</th><th>Дрон</th><th>Активация</th>
+      <th>Договор</th><th>Действует до</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in trackers %}
+    <tr>
+      <td><a href="{{ url_for('tracker_edit', tracker_id=t.id) }}">{{ t.name }}</a></td>
+      <td>{{ t.serial_number or '—' }}</td>
+      <td>{% if t.drone %}<a href="{{ url_for('drone_detail', drone_id=t.drone.id) }}">{{ t.drone.tail_number }}</a>{% else %}—{% endif %}</td>
+      <td>
+        {% if t.status == 'activated' %}<span class="badge badge-ok">{{ t.status_label }}</span>
+        {% elif t.status == 'not_activated' %}<span class="badge badge-muted">{{ t.status_label }}</span>
+        {% else %}<span class="badge badge-danger">{{ t.status_label }}</span>{% endif %}
+      </td>
+      <td>{{ t.contract_number or '—' }}{% if t.provider %} <span class="tag">{{ t.provider }}</span>{% endif %}</td>
+      <td>
+        {% if t.contract_end %}
+          {{ t.contract_end.strftime('%d.%m.%Y') }}
+          {% if t.contract_status == 'expired' %}<span class="badge badge-danger">Истёк</span>
+          {% elif t.contract_status == 'warning' %}<span class="badge badge-warn">{{ t.days_left }} дн.</span>
+          {% else %}<span class="badge badge-ok">Норма</span>{% endif %}
+        {% else %}<span class="badge badge-muted">Бессрочно</span>{% endif %}
+      </td>
+      <td>
+        <form class="inline-form" method="post" action="{{ url_for('tracker_delete', tracker_id=t.id) }}" onsubmit="return confirm('Удалить трекер?');">
+          <button class="btn btn-secondary btn-sm" type="submit">Удалить</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card empty">Трекеров пока нет. Добавьте вручную или импортируйте из таблицы.</div>
+{% endif %}
+{% endblock %}

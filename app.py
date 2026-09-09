@@ -12,10 +12,12 @@ from models import (
     DRONE_STATUSES,
     PART_STATUSES,
     SERVICE_CATEGORIES,
+    TRACKER_STATUSES,
     Drone,
     Flight,
     Part,
     ServiceRecord,
+    Tracker,
 )
 
 # При обычном запуске (python app.py) — папка с исходниками.
@@ -75,6 +77,7 @@ def register_routes(app):
             "DRONE_STATUSES": DRONE_STATUSES,
             "PART_STATUSES": PART_STATUSES,
             "SERVICE_CATEGORIES": SERVICE_CATEGORIES,
+            "TRACKER_STATUSES": TRACKER_STATUSES,
             "today": date.today().isoformat(),
         }
 
@@ -95,11 +98,18 @@ def register_routes(app):
 
         recent_flights = Flight.query.order_by(Flight.date.desc(), Flight.id.desc()).limit(8).all()
 
+        trackers = Tracker.query.all()
+        attention_trackers = sorted(
+            [t for t in trackers if t.status != "activated" or t.contract_status in ("warning", "expired")],
+            key=lambda t: (t.days_left if t.days_left is not None else 10**9),
+        )
+
         return render_template(
             "dashboard.html",
             total=total,
             by_status=by_status,
             attention_parts=attention_parts,
+            attention_trackers=attention_trackers,
             recent_flights=recent_flights,
         )
 
@@ -356,6 +366,76 @@ def register_routes(app):
         db.session.commit()
         flash("Запчасть удалена.", "success")
         return redirect(url_for("parts_list"))
+
+    # ---------- Трекеры ----------
+    @app.route("/trackers")
+    def trackers_list():
+        status_filter = request.args.get("status", "")
+        query = Tracker.query
+        if status_filter:
+            query = query.filter_by(status=status_filter)
+        trackers = query.order_by(Tracker.name).all()
+        return render_template("trackers.html", trackers=trackers, status_filter=status_filter)
+
+    @app.route("/trackers/new", methods=["GET", "POST"])
+    def tracker_new():
+        drones = Drone.query.order_by(Drone.tail_number).all()
+        if request.method == "POST":
+            name = request.form.get("name", "").strip()
+            if not name:
+                flash("Укажите наименование трекера.", "error")
+                return render_template("tracker_form.html", tracker=None, drones=drones, form=request.form)
+
+            tracker = Tracker(
+                name=name,
+                serial_number=request.form.get("serial_number", "").strip() or None,
+                drone_id=request.form.get("drone_id", type=int) or None,
+                status=request.form.get("status", "not_activated"),
+                activation_date=parse_date_field(request.form.get("activation_date")),
+                provider=request.form.get("provider", "").strip() or None,
+                contract_number=request.form.get("contract_number", "").strip() or None,
+                contract_start=parse_date_field(request.form.get("contract_start")),
+                contract_end=parse_date_field(request.form.get("contract_end")),
+                notes=request.form.get("notes", "").strip() or None,
+            )
+            db.session.add(tracker)
+            db.session.commit()
+            flash(f"Трекер «{name}» добавлен.", "success")
+            return redirect(url_for("trackers_list"))
+        return render_template("tracker_form.html", tracker=None, drones=drones, form={})
+
+    @app.route("/trackers/<int:tracker_id>/edit", methods=["GET", "POST"])
+    def tracker_edit(tracker_id):
+        tracker = Tracker.query.get_or_404(tracker_id)
+        drones = Drone.query.order_by(Drone.tail_number).all()
+        if request.method == "POST":
+            name = request.form.get("name", "").strip()
+            if not name:
+                flash("Укажите наименование трекера.", "error")
+                return render_template("tracker_form.html", tracker=tracker, drones=drones, form=request.form)
+
+            tracker.name = name
+            tracker.serial_number = request.form.get("serial_number", "").strip() or None
+            tracker.drone_id = request.form.get("drone_id", type=int) or None
+            tracker.status = request.form.get("status", "not_activated")
+            tracker.activation_date = parse_date_field(request.form.get("activation_date"))
+            tracker.provider = request.form.get("provider", "").strip() or None
+            tracker.contract_number = request.form.get("contract_number", "").strip() or None
+            tracker.contract_start = parse_date_field(request.form.get("contract_start"))
+            tracker.contract_end = parse_date_field(request.form.get("contract_end"))
+            tracker.notes = request.form.get("notes", "").strip() or None
+            db.session.commit()
+            flash("Изменения сохранены.", "success")
+            return redirect(url_for("trackers_list"))
+        return render_template("tracker_form.html", tracker=tracker, drones=drones, form=None)
+
+    @app.route("/trackers/<int:tracker_id>/delete", methods=["POST"])
+    def tracker_delete(tracker_id):
+        tracker = Tracker.query.get_or_404(tracker_id)
+        db.session.delete(tracker)
+        db.session.commit()
+        flash("Трекер удалён.", "success")
+        return redirect(url_for("trackers_list"))
 
     # ---------- Обслуживание ----------
     @app.route("/drones/<int:drone_id>/service/new", methods=["POST"])

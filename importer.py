@@ -6,7 +6,7 @@ from datetime import datetime
 import pandas as pd
 
 from db import db
-from models import Drone, Flight, Part
+from models import Drone, Flight, Part, Tracker
 
 DRONE_STATUS_ALIASES = {
     "активен": "active",
@@ -31,6 +31,18 @@ PART_STATUS_ALIASES = {
     "списана": "written_off",
     "списан": "written_off",
     "written_off": "written_off",
+}
+
+TRACKER_STATUS_ALIASES = {
+    "не активирован": "not_activated",
+    "неактивен": "not_activated",
+    "not_activated": "not_activated",
+    "активирован": "activated",
+    "активен": "activated",
+    "activated": "activated",
+    "приостановлен": "suspended",
+    "приостановлена": "suspended",
+    "suspended": "suspended",
 }
 
 DRONE_HEADERS = {
@@ -86,10 +98,44 @@ PART_HEADERS = {
     "примечание": "notes",
 }
 
+TRACKER_HEADERS = {
+    "наименование": "name",
+    "название": "name",
+    "серийный номер": "serial_number",
+    "imei": "serial_number",
+    "бортовой номер": "tail_number",
+    "борт": "tail_number",
+    "статус": "status",
+    "дата активации": "activation_date",
+    "поставщик": "provider",
+    "оператор": "provider",
+    "номер договора": "contract_number",
+    "договор": "contract_number",
+    "начало договора": "contract_start",
+    "дата начала договора": "contract_start",
+    "окончание договора": "contract_end",
+    "дата окончания договора": "contract_end",
+    "срок действия договора": "contract_end",
+    "примечания": "notes",
+    "примечание": "notes",
+}
+
 
 def _norm(text):
     text = str(text).lstrip("﻿")
     return re.sub(r"\s+", " ", text.strip().lower())
+
+
+def _get_str(row, key):
+    """Достаёт строковое поле из строки таблицы, корректно обрабатывая
+    пустые ячейки: pandas читает их как NaN (float), а `NaN or ""` в Python
+    истинно, поэтому наивная проверка `row.get(key) or ""` превращала бы
+    пустую ячейку в строку "nan"."""
+    value = row.get(key)
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 def _read_table(file_storage):
@@ -142,27 +188,27 @@ def import_drones(file_storage):
     for i, row in df.iterrows():
         row_num = i + 2
         try:
-            tail_number = str(row.get("tail_number") or "").strip()
+            tail_number = _get_str(row, "tail_number") or ""
             if not tail_number:
                 raise ValueError("не указан бортовой номер")
             if Drone.query.filter_by(tail_number=tail_number).first():
                 raise ValueError(f"дрон с бортовым номером «{tail_number}» уже существует")
-            drone_type = str(row.get("type") or "").strip()
+            drone_type = _get_str(row, "type") or ""
             if not drone_type:
                 raise ValueError("не указан тип/модель")
 
-            status_raw = _norm(row.get("status")) if row.get("status") else ""
+            status_raw = _norm(_get_str(row, "status") or "")
             status = DRONE_STATUS_ALIASES.get(status_raw, "active")
 
             drone = Drone(
                 tail_number=tail_number,
                 type=drone_type,
-                serial_number=(str(row.get("serial_number")).strip() if row.get("serial_number") else None),
+                serial_number=_get_str(row, "serial_number"),
                 status=status,
                 initial_hours=_parse_float(row.get("initial_hours")) or 0.0,
                 initial_cycles=_parse_int(row.get("initial_cycles")) or 0,
                 commissioned_date=_parse_date(row.get("commissioned_date")),
-                notes=(str(row.get("notes")).strip() if row.get("notes") else None),
+                notes=_get_str(row, "notes"),
             )
             db.session.add(drone)
             created += 1
@@ -181,7 +227,7 @@ def import_flights(file_storage):
     for i, row in df.iterrows():
         row_num = i + 2
         try:
-            tail_number = str(row.get("tail_number") or "").strip()
+            tail_number = _get_str(row, "tail_number") or ""
             if not tail_number:
                 raise ValueError("не указан бортовой номер")
             drone = Drone.query.filter_by(tail_number=tail_number).first()
@@ -200,8 +246,8 @@ def import_flights(file_storage):
                 drone_id=drone.id,
                 date=date_val,
                 duration_hours=duration,
-                pilot=(str(row.get("pilot")).strip() if row.get("pilot") else None),
-                notes=(str(row.get("notes")).strip() if row.get("notes") else None),
+                pilot=_get_str(row, "pilot"),
+                notes=_get_str(row, "notes"),
             )
             db.session.add(flight)
             created += 1
@@ -220,28 +266,28 @@ def import_parts(file_storage):
     for i, row in df.iterrows():
         row_num = i + 2
         try:
-            name = str(row.get("name") or "").strip()
+            name = _get_str(row, "name") or ""
             if not name:
                 raise ValueError("не указано наименование запчасти")
 
-            tail_number = str(row.get("tail_number") or "").strip()
+            tail_number = _get_str(row, "tail_number") or ""
             drone = None
             if tail_number:
                 drone = Drone.query.filter_by(tail_number=tail_number).first()
                 if not drone:
                     raise ValueError(f"дрон с бортовым номером «{tail_number}» не найден")
 
-            status_raw = _norm(row.get("status")) if row.get("status") else ""
+            status_raw = _norm(_get_str(row, "status") or "")
             status = PART_STATUS_ALIASES.get(status_raw, "installed" if drone else "in_stock")
 
             part = Part(
                 name=name,
-                serial_number=(str(row.get("serial_number")).strip() if row.get("serial_number") else None),
+                serial_number=_get_str(row, "serial_number"),
                 resource_hours=_parse_float(row.get("resource_hours")),
                 resource_cycles=_parse_int(row.get("resource_cycles")),
                 status=status,
                 hours_before_install=_parse_float(row.get("hours_before_install")) or 0.0,
-                notes=(str(row.get("notes")).strip() if row.get("notes") else None),
+                notes=_get_str(row, "notes"),
             )
             if drone and status == "installed":
                 part.drone_id = drone.id
@@ -260,10 +306,54 @@ def import_parts(file_storage):
     return created, errors
 
 
+def import_trackers(file_storage):
+    df = _map_columns(_read_table(file_storage), TRACKER_HEADERS)
+    created, errors = 0, []
+    for i, row in df.iterrows():
+        row_num = i + 2
+        try:
+            name = _get_str(row, "name") or ""
+            if not name:
+                raise ValueError("не указано наименование трекера")
+
+            tail_number = _get_str(row, "tail_number") or ""
+            drone = None
+            if tail_number:
+                drone = Drone.query.filter_by(tail_number=tail_number).first()
+                if not drone:
+                    raise ValueError(f"дрон с бортовым номером «{tail_number}» не найден")
+
+            status_raw = _norm(_get_str(row, "status") or "")
+            status = TRACKER_STATUS_ALIASES.get(status_raw, "not_activated")
+
+            tracker = Tracker(
+                name=name,
+                serial_number=_get_str(row, "serial_number"),
+                drone_id=drone.id if drone else None,
+                status=status,
+                activation_date=_parse_date(row.get("activation_date")),
+                provider=_get_str(row, "provider"),
+                contract_number=_get_str(row, "contract_number"),
+                contract_start=_parse_date(row.get("contract_start")),
+                contract_end=_parse_date(row.get("contract_end")),
+                notes=_get_str(row, "notes"),
+            )
+            db.session.add(tracker)
+            created += 1
+        except Exception as exc:
+            errors.append(f"Строка {row_num}: {exc}")
+    if created:
+        db.session.commit()
+    else:
+        db.session.rollback()
+    return created, errors
+
+
 IMPORTERS = {
     "drones": import_drones,
     "flights": import_flights,
     "parts": import_parts,
+    "trackers": import_trackers,
 }
 
 TEMPLATE_HEADERS = {
@@ -273,4 +363,6 @@ TEMPLATE_HEADERS = {
     "parts": ["Наименование", "Серийный номер", "Ресурс (ч)", "Ресурс (циклы)", "Бортовой номер",
                "Наработка до установки (ч)", "Наработка борта при установке (ч)", "Дата установки",
                "Статус", "Примечания"],
+    "trackers": ["Наименование", "Серийный номер", "Бортовой номер", "Статус", "Дата активации",
+                 "Поставщик", "Номер договора", "Начало договора", "Окончание договора", "Примечания"],
 }

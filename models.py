@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from db import db
 
@@ -22,8 +22,17 @@ SERVICE_CATEGORIES = {
     "other": "Другое",
 }
 
+TRACKER_STATUSES = {
+    "not_activated": "Не активирован",
+    "activated": "Активирован",
+    "suspended": "Приостановлен",
+}
+
 # Доля оставшегося ресурса, при которой запчасть считается "требует внимания"
 WARNING_RATIO = 0.1
+
+# За сколько дней до окончания договора трекер считается "требует внимания"
+CONTRACT_WARNING_DAYS = 30
 
 
 class Drone(db.Model):
@@ -45,6 +54,7 @@ class Drone(db.Model):
         order_by="Flight.date.desc()",
     )
     parts = db.relationship("Part", backref="drone", order_by="Part.name")
+    trackers = db.relationship("Tracker", backref="drone", order_by="Tracker.name")
     service_records = db.relationship(
         "ServiceRecord",
         backref="drone",
@@ -185,3 +195,43 @@ class ServiceRecord(db.Model):
     @property
     def category_label(self):
         return SERVICE_CATEGORIES.get(self.category, self.category)
+
+
+class Tracker(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), nullable=False)
+    serial_number = db.Column(db.String(100))  # IMEI / серийный номер модуля
+    drone_id = db.Column(db.Integer, db.ForeignKey("drone.id"), nullable=True)
+
+    status = db.Column(db.String(20), default="not_activated", nullable=False)
+    activation_date = db.Column(db.Date)
+
+    provider = db.Column(db.String(150))
+    contract_number = db.Column(db.String(100))
+    contract_start = db.Column(db.Date)
+    contract_end = db.Column(db.Date)
+
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def status_label(self):
+        return TRACKER_STATUSES.get(self.status, self.status)
+
+    @property
+    def days_left(self):
+        if not self.contract_end:
+            return None
+        return (self.contract_end - date.today()).days
+
+    @property
+    def contract_status(self):
+        """ok / warning / expired / unknown (договор бессрочный или дата не указана)."""
+        if not self.contract_end:
+            return "unknown"
+        days = self.days_left
+        if days < 0:
+            return "expired"
+        if days <= CONTRACT_WARNING_DAYS:
+            return "warning"
+        return "ok"
