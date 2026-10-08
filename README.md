@@ -61,3 +61,18 @@ Linux/macOS в Windows.
 Если после первой сборки хочется скрыть консольное окно — в `build_exe.bat`
 уже указан флаг `--windowed`; если наоборот нужно видеть окно консоли для
 отладки ошибок запуска, уберите этот флаг и пересоберите.
+
+## Полётные логи (Android, прототип)
+
+В папке `flight-log-reader/` — отдельный проект из Claude Design: Android-приложение
+для чтения и анализа полётных логов БВС (ArduPilot, PX4, DJI, Betaflight/INAV).
+
+- `flight-log-reader/design/` — дизайн-хэндофф: спецификация (`README.md`) и
+  исходник интерактивного прототипа.
+- `flight-log-reader/android/` — WebView-обёртка, упаковывающая прототип в APK.
+  Прототип также открывается в браузере офлайн:
+  `flight-log-reader/android/app/src/main/assets/index.html`.
+
+APK собирает GitHub Actions (workflow «Build APK»): **Actions → Build APK →
+Artifacts → flight-log-reader-debug**. Данные в прототипе демонстрационные —
+реальные парсеры логов ещё не подключены.

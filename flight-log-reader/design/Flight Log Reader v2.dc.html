@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<script src="./bare-frame.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#dcdcde;font-family:Barlow,system-ui,sans-serif;-webkit-font-smoothing:antialiased}*{box-sizing:border-box}a{color:#416180}a:hover{color:#2c455d}::-webkit-scrollbar{display:none}input::placeholder{color:var(--mu)}button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+[data-fl]{--bg:#f2f2f3;--sf:#e9e9ea;--sf2:#dfe0e2;--tx:#1d1f20;--mu:#5d5d60;--dv:rgba(29,31,32,.16);--ac:#5980a6;--act:#416180;--ac1:#e3edf7;--onac:#fff;--wr:#8a5a00;--wr1:rgba(176,116,0,.12);--cr:#a8352a;--cr1:rgba(168,53,42,.1);--ok:#3d7a57;--mk:rgba(29,31,32,.5);--grid:rgba(29,31,32,.06);--ramp:linear-gradient(90deg,#9ebbd8,#416180,#1d2d3d)}
+[data-th="dark"]{--bg:#1b1c1e;--sf:#232427;--sf2:#2c2d31;--tx:#e7e7ea;--mu:#a3a3a7;--dv:rgba(231,231,234,.16);--ac:#749dc4;--act:#94bce3;--ac1:rgba(116,157,196,.16);--onac:#0f1720;--wr:#e2b45c;--wr1:rgba(226,180,92,.14);--cr:#f08a7a;--cr1:rgba(240,138,122,.12);--ok:#7cc59a;--mk:rgba(231,231,234,.45);--grid:rgba(231,231,234,.05);--ramp:linear-gradient(90deg,#416180,#94bce3,#eef6ff)}</style>
+</helmet>
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#5980a6"></rect><path d="M30 68 L50 32 L70 68" fill="none" stroke="#f2f2f3" stroke-width="5"></path><rect x="44" y="44" width="12" height="12" fill="#f2f2f3"></rect></svg></template>
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:{{ wrapPad }}">
+<x-import component-from-global-scope="{{ frameComp }}" from="./android-frame.jsx" dark="{{ isDark }}" hint-size="412px,892px">
+<div data-fl="light" style="height:100%">
+<div data-th="{{ theme }}" style="position:relative;height:100%;background:var(--bg);color:var(--tx);font-family:Barlow,system-ui,sans-serif;font-size:15px;line-height:1.45;overflow:hidden;display:flex;flex-direction:column;font-variant-numeric:tabular-nums">
+
+<sc-if value="{{ isLibrary }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="01 Полёты" style="flex:1;min-height:0;display:flex;flex-direction:column">
+  <div style="flex:none;padding:10px 16px 12px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:flex-start;gap:8px">
+      <div style="flex:1;display:flex;flex-direction:column;gap:3px">
+        <div style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:var(--mu)">БОРТОВЫЕ ЖУРНАЛЫ</div>
+        <div style="font:600 36px/1.05 'Barlow Condensed',sans-serif;letter-spacing:-.01em">Полёты</div>
+        <div style="font-size:14px;color:var(--mu)">{{ libSummary }}</div>
+      </div>
+      <button onClick="{{ toggleTheme }}" title="Тема" style="flex:none;width:44px;height:44px;border:1px solid var(--dv);background:transparent;color:var(--tx);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:var(--sf)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+      </button>
+      <button onClick="{{ toggleSel }}" title="Сравнить" style="flex:none;height:44px;padding:0 12px;border:1px solid {{ selBtnBorder }};background:{{ selBtnBg }};color:{{ selBtnColor }};font:600 14px 'Barlow Condensed',sans-serif;letter-spacing:.06em;display:flex;align-items:center;gap:6px;cursor:pointer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="16"></rect><rect x="14" y="4" width="7" height="16"></rect></svg>СРАВНИТЬ
+      </button>
+    </div>
+    <div style="position:relative;border:1px solid var(--ac);background:var(--ac1);padding:10px 10px 10px 12px;display:flex;align-items:center;gap:12px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--act)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="10" cy="7" r="1"></circle><circle cx="4" cy="20" r="1"></circle><path d="M4.7 19.3 19 5M21 3l-3 1 2 2zM9.26 7.68 5 12l2 5M10 14l5 2 3.5-3.5M18 12l1-1 1 1-1 1z"></path></svg>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+        <span style="font-size:14.5px;font-weight:600">CubeOrange+ подключён · USB-OTG</span>
+        <span style="font-size:13px;color:var(--mu)">3 новых лога на SD-карте контроллера</span>
+      </div>
+      <button onClick="{{ usbImport }}" style="flex:none;height:40px;padding:0 14px;border:none;background:var(--ac);color:var(--onac);font:600 14px 'Barlow Condensed',sans-serif;letter-spacing:.06em;cursor:pointer" style-hover="background:var(--act)">СКАЧАТЬ</button>
+    </div>
+    <div style="display:flex;gap:6px;overflow-x:auto;margin:0 -16px;padding:0 16px">
+      <sc-for list="{{ srcChips }}" as="c" hint-placeholder-count="5">
+        <button onClick="{{ c.onClick }}" style="flex:none;height:34px;padding:0 12px;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.color }};font:500 14px Barlow,sans-serif;white-space:nowrap;cursor:pointer">{{ c.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+  <div style="flex:1;min-height:0;overflow:auto;border-top:1px solid var(--dv);padding-bottom:96px">
+    <sc-for list="{{ logList }}" as="l" hint-placeholder-count="5">
+      <div onClick="{{ l.onClick }}" style="display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid var(--dv);background:{{ l.rowBg }};cursor:pointer" style-hover="background:var(--sf)">
+        <sc-if value="{{ l.selMode }}" hint-placeholder-val="{{ false }}">
+          <span style="flex:none;width:22px;height:22px;margin-top:2px;border:1.5px solid {{ l.boxBorder }};background:{{ l.boxBg }};color:var(--onac);display:flex;align-items:center;justify-content:center;font:700 12px Barlow,sans-serif">{{ l.boxMark }}</span>
+        </sc-if>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;padding:4px 6px;border:1px solid var(--dv);color:var(--act)">{{ l.ext }}</span>
+            <span style="font-size:13px;color:var(--mu)">{{ l.src }}</span>
+            <span style="margin-left:auto;font-size:13px;color:var(--mu)">{{ l.date }}</span>
+          </div>
+          <div style="display:flex;flex-direction:column">
+            <span style="font-size:16.5px;font-weight:600;line-height:1.3;text-wrap:pretty">{{ l.title }}</span>
+            <span style="font-size:13.5px;color:var(--mu)">{{ l.vehicle }}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <span style="font-size:14px;font-weight:500">{{ l.dur }}</span>
+            <span style="font-size:14px;font-weight:500">{{ l.distTxt }}</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:{{ l.stColor }}"><span style="width:7px;height:7px;background:{{ l.stColor }}"></span>{{ l.status }}</span>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 16px 16px;background:var(--bg);border-top:1px solid var(--dv)">
+    <sc-if value="{{ notSel }}" hint-placeholder-val="{{ true }}">
+      <button onClick="{{ openSheet }}" style="position:relative;width:100%;height:52px;border:none;background:var(--ac);color:var(--onac);font:600 17px 'Barlow Condensed',sans-serif;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer" style-hover="background:var(--act)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path></svg>ИМПОРТИРОВАТЬ ЛОГ
+        <i style="position:absolute;top:-6px;left:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+        <i style="position:absolute;top:-6px;right:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+      </button>
+    </sc-if>
+    <sc-if value="{{ selMode }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="flex:1;font-size:14px;color:var(--mu)">{{ selHint }}</span>
+        <button onClick="{{ openCompare }}" style="height:48px;padding:0 20px;border:none;background:{{ cmpBtnBg }};color:var(--onac);opacity:{{ cmpBtnOp }};font:600 16px 'Barlow Condensed',sans-serif;letter-spacing:.08em;cursor:pointer">СРАВНИТЬ</button>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isFlight }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="03 Полёт" style="flex:1;min-height:0;display:flex;flex-direction:column">
+  <div style="flex:none;padding:4px 8px 0 4px;display:flex;align-items:center;gap:4px">
+    <button onClick="{{ goLibrary }}" style="flex:none;width:44px;height:48px;border:none;background:transparent;color:var(--tx);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg></button>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="font:600 20px/1.15 'Barlow Condensed',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ log.title }}</div>
+      <div style="font-size:13px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ log.src }} {{ log.ext }} · {{ log.date }}</div>
+    </div>
+    <button onClick="{{ openExport }}" title="Экспорт" style="flex:none;height:40px;padding:0 12px;border:1px solid var(--dv);background:transparent;color:var(--tx);font:600 14px 'Barlow Condensed',sans-serif;letter-spacing:.06em;display:flex;align-items:center;gap:6px;cursor:pointer" style-hover="background:var(--sf)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>ОТЧЁТ</button>
+  </div>
+  <div style="flex:none;display:flex;overflow-x:auto;border-bottom:1px solid var(--dv);padding:0 8px">
+    <sc-for list="{{ tabs }}" as="tb" hint-placeholder-count="5">
+      <button onClick="{{ tb.onClick }}" style="flex:none;height:46px;padding:0 12px;border:none;border-bottom:2px solid {{ tb.line }};background:transparent;color:{{ tb.color }};font:600 15px 'Barlow Condensed',sans-serif;letter-spacing:.08em;display:flex;align-items:center;gap:6px;cursor:pointer">{{ tb.label }}<span style="font:600 11px Barlow,sans-serif;color:var(--wr);opacity:{{ tb.badgeOp }}">{{ tb.badge }}</span></button>
+    </sc-for>
+  </div>
+  <div style="flex:1;min-height:0;overflow:auto;padding:16px 16px 24px;display:flex;flex-direction:column;gap:14px">
+    <sc-if value="{{ tabSummary }}" hint-placeholder-val="{{ true }}">
+      <div style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:var(--mu)">ДИАГНОСТИКА</div>
+      <sc-for list="{{ issues }}" as="is" hint-placeholder-count="2">
+        <div onClick="{{ is.onClick }}" style="border:1px solid var(--dv);background:var(--wr1);padding:12px 14px;display:flex;flex-direction:column;gap:4px;cursor:pointer" style-hover="border-color:var(--wr)">
+          <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;padding:3px 5px;border:1px solid var(--wr);color:var(--wr)">ПРЕДУПР.</span><span style="font-size:15.5px;font-weight:600">{{ is.title }}</span><span style="margin-left:auto;font-size:13px;font-weight:600;color:var(--wr)">{{ is.time }}</span></div>
+          <div style="font-size:14px;line-height:1.45;color:var(--tx);text-wrap:pretty">{{ is.text }}</div>
+          <div style="font-size:14px;font-weight:600;color:var(--act)">{{ is.cta }} →</div>
+        </div>
+      </sc-for>
+      <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--mu)"><span style="flex:none;width:7px;height:7px;background:var(--ok)"></span>GPS, EKF3, выходы на моторы, RC-канал — в норме</div>
+      <div style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:var(--mu);padding-top:8px">СВОДКА</div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--dv);border-left:1px solid var(--dv)">
+        <sc-for list="{{ stats }}" as="st" hint-placeholder-count="6">
+          <div style="padding:10px 12px;border-right:1px solid var(--dv);border-bottom:1px solid var(--dv);display:flex;flex-direction:column;gap:2px">
+            <span style="font-size:13px;color:var(--mu)">{{ st.label }}</span>
+            <span style="display:flex;align-items:baseline;gap:4px"><span style="font:600 28px/1.1 'Barlow Condensed',sans-serif;color:{{ st.color }}">{{ st.value }}</span><span style="font-size:13px;color:var(--mu)">{{ st.unit }}</span></span>
+            <span style="font-size:12.5px;color:var(--mu)">{{ st.sub }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:var(--mu);padding-top:8px">БОРТ</div>
+      <div style="border-top:1px solid var(--dv)">
+        <sc-for list="{{ hw }}" as="h" hint-placeholder-count="6">
+          <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--dv)">
+            <span style="flex:none;width:104px;font-size:14px;color:var(--mu)">{{ h.k }}</span>
+            <span style="flex:1;font-size:14px;text-align:right">{{ h.v }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+    <sc-if value="{{ tabTrack }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--dv)">
+        <sc-for list="{{ trackModes }}" as="m" hint-placeholder-count="3">
+          <button onClick="{{ m.onClick }}" style="height:36px;border:none;background:{{ m.bg }};color:{{ m.color }};font:500 14px Barlow,sans-serif;cursor:pointer">{{ m.label }}</button>
+        </sc-for>
+      </div>
+      <div style="position:relative;border:1px solid var(--dv);background-color:var(--sf);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:20px 20px">
+        <i style="position:absolute;top:-6px;left:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+        <i style="position:absolute;top:-6px;right:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+        <i style="position:absolute;bottom:-6px;left:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+        <i style="position:absolute;bottom:-6px;right:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+        {{ mapSvg }}
+        <div style="position:absolute;left:8px;bottom:6px;font-size:11.5px;color:var(--mu)">Офлайн-подложка · 55.712° N, 37.418° E</div>
+        <div style="position:absolute;right:8px;top:8px;font:600 12px 'Barlow Condensed',sans-serif;color:var(--tx);border:1px solid var(--dv);background:var(--bg);padding:2px 6px">{{ scaleLabel }}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:13px;color:var(--mu)">{{ legendMin }}</span>
+        <div style="flex:1;height:6px;background:var(--ramp)"></div>
+        <span style="font-size:13px;color:var(--mu)">{{ legendMax }}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--dv);border-left:1px solid var(--dv)">
+        <sc-for list="{{ att }}" as="a" hint-placeholder-count="6">
+          <div style="padding:8px 10px;border-right:1px solid var(--dv);border-bottom:1px solid var(--dv);display:flex;flex-direction:column">
+            <span style="font:600 11px/1.4 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:var(--mu)">{{ a.k }}</span>
+            <span style="font:600 22px/1.15 'Barlow Condensed',sans-serif">{{ a.v }}<span style="font:400 12px Barlow,sans-serif;color:var(--mu)"> {{ a.u }}</span></span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+    <sc-if value="{{ tabCharts }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <sc-for list="{{ chanChips }}" as="cc" hint-placeholder-count="8">
+          <button onClick="{{ cc.onClick }}" style="height:32px;padding:0 10px;border:1px solid {{ cc.border }};background:{{ cc.bg }};color:{{ cc.color }};font:500 13.5px Barlow,sans-serif;cursor:pointer">{{ cc.label }}</button>
+        </sc-for>
+      </div>
+      <sc-for list="{{ charts }}" as="ch" hint-placeholder-count="3">
+        <div style="border:1px solid var(--dv);padding:10px 12px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <span style="font-size:15px;font-weight:600">{{ ch.label }}</span>
+            <span style="font:500 12.5px 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:var(--mu)">{{ ch.msg }}</span>
+            <span style="margin-left:auto;font:600 22px/1 'Barlow Condensed',sans-serif;color:{{ ch.curColor }}">{{ ch.cur }}</span>
+            <span style="font-size:12.5px;color:var(--mu)">{{ ch.unit }}</span>
+          </div>
+          <div onClick="{{ seekChart }}" style="position:relative;height:84px;cursor:crosshair;background-image:linear-gradient(var(--grid) 1px,transparent 1px);background-size:100% 21px">
+            {{ ch.svg }}
+            <div style="position:absolute;top:-2px;bottom:-2px;left:{{ cursorPct }};width:1px;background:var(--tx);pointer-events:none"></div>
+          </div>
+          <div style="display:flex;font-size:12px;color:var(--mu)"><span style="white-space:nowrap">мин {{ ch.min }} · макс {{ ch.max }}</span><span style="margin-left:auto">{{ ch.rate }}</span></div>
+        </div>
+      </sc-for>
+      <div style="font-size:13px;color:var(--mu);text-align:center">Нажмите на график, чтобы перейти к моменту полёта</div>
+    </sc-if>
+    <sc-if value="{{ tabEvents }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--dv)">
+        <sc-for list="{{ evFilters }}" as="ef" hint-placeholder-count="3">
+          <button onClick="{{ ef.onClick }}" style="height:36px;border:none;background:{{ ef.bg }};color:{{ ef.color }};font:500 14px Barlow,sans-serif;cursor:pointer">{{ ef.label }}</button>
+        </sc-for>
+      </div>
+      <div style="border-top:1px solid var(--dv)">
+        <sc-for list="{{ eventList }}" as="ev" hint-placeholder-count="8">
+          <div onClick="{{ ev.onClick }}" style="display:flex;gap:12px;padding:11px 8px;border-bottom:1px solid var(--dv);background:{{ ev.bg }};cursor:pointer" style-hover="background:var(--sf)">
+            <span style="flex:none;width:44px;font:600 15px 'Barlow Condensed',sans-serif;color:var(--mu)">{{ ev.time }}</span>
+            <span style="flex:none;width:8px;height:8px;margin-top:6px;background:{{ ev.color }}"></span>
+            <div style="flex:1;display:flex;flex-direction:column;gap:1px">
+              <span style="font-size:15px;font-weight:600;color:{{ ev.titleColor }}">{{ ev.title }}</span>
+              <span style="font-size:13.5px;color:var(--mu);line-height:1.4">{{ ev.detail }}</span>
+            </div>
+            <span style="flex:none;font:500 11.5px 'Barlow Condensed',sans-serif;letter-spacing:.06em;color:var(--mu)">{{ ev.msg }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+    <sc-if value="{{ tabParams }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:10px;height:46px;padding:0 12px;border:1px solid var(--dv);background:var(--sf)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mu)" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+        <input value="{{ q }}" onChange="{{ onQuery }}" placeholder="BATT, RTL, ATC_RAT…" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--tx);font:500 15px Barlow,sans-serif">
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="flex:1;font-size:13.5px;color:var(--mu)">{{ paramSummary }}</span>
+        <button onClick="{{ toggleOnlyCh }}" style="flex:none;height:32px;padding:0 10px;border:1px solid {{ onlyChBorder }};background:{{ onlyChBg }};color:{{ onlyChColor }};font:500 13.5px Barlow,sans-serif;cursor:pointer">Только изменённые</button>
+      </div>
+      <div style="border-top:1px solid var(--dv)">
+        <sc-for list="{{ paramList }}" as="p" hint-placeholder-count="8">
+          <div style="padding:10px 0;border-bottom:1px solid var(--dv);display:flex;flex-direction:column;gap:2px">
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <span style="font:600 16px 'Barlow Condensed',sans-serif;letter-spacing:.03em">{{ p.name }}</span>
+              <span style="margin-left:auto;font:600 16px 'Barlow Condensed',sans-serif;color:var(--act)">{{ p.value }}</span>
+            </div>
+            <div style="display:flex;gap:8px;font-size:13px;color:var(--mu);line-height:1.4"><span style="flex:1">{{ p.desc }}</span><span style="flex:none;color:var(--wr);font-weight:600">{{ p.defTxt }}</span></div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+  <div style="flex:none;border-top:1px solid var(--dv);background:var(--sf);padding:10px 16px 12px;display:flex;flex-direction:column;gap:8px">
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
+      <sc-for list="{{ readouts }}" as="r" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column">
+          <span style="font:600 11px/1.3 'Barlow Condensed',sans-serif;letter-spacing:.12em;color:var(--mu)">{{ r.k }}</span>
+          <span style="font:600 19px/1.1 'Barlow Condensed',sans-serif;color:{{ r.color }}">{{ r.v }}<span style="font:400 11.5px Barlow,sans-serif;color:var(--mu)"> {{ r.u }}</span></span>
+        </div>
+      </sc-for>
+    </div>
+    <div onPointerDown="{{ scrubDown }}" onPointerMove="{{ scrubMove }}" onPointerUp="{{ scrubUp }}" style="position:relative;height:26px;cursor:pointer;touch-action:none">
+      <div style="position:absolute;left:0;right:0;top:11px;height:4px;background:var(--sf2)"></div>
+      <div style="position:absolute;left:0;top:11px;height:4px;background:var(--ac);width:{{ cursorPct }}"></div>
+      <sc-for list="{{ ticks }}" as="tk" hint-placeholder-count="6">
+        <div style="position:absolute;top:4px;width:2px;height:18px;left:{{ tk.left }};background:{{ tk.color }}"></div>
+      </sc-for>
+      <div style="position:absolute;top:5px;width:14px;height:16px;margin-left:-7px;background:var(--tx);left:{{ cursorPct }}"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button onClick="{{ togglePlay }}" style="flex:none;width:44px;height:44px;border:none;background:var(--ac);display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer" style-hover="background:var(--act)">
+        <sc-if value="{{ playing }}" hint-placeholder-val="{{ false }}"><span style="width:4px;height:15px;background:var(--onac)"></span><span style="width:4px;height:15px;background:var(--onac)"></span></sc-if>
+        <sc-if value="{{ paused }}" hint-placeholder-val="{{ true }}"><span style="width:0;height:0;border-left:13px solid var(--onac);border-top:8px solid transparent;border-bottom:8px solid transparent;margin-left:3px"></span></sc-if>
+      </button>
+      <span style="font:600 18px 'Barlow Condensed',sans-serif;white-space:nowrap">{{ timeTxt }}<span style="color:var(--mu)"> / {{ durTxt }}</span></span>
+      <span style="margin-left:auto;font:600 13px 'Barlow Condensed',sans-serif;letter-spacing:.08em;padding:5px 8px;border:1px solid {{ modeColor }};color:{{ modeColor }}">{{ modeTxt }}</span>
+      <button onClick="{{ cycleSpeed }}" style="height:32px;min-width:48px;padding:0 8px;border:1px solid var(--dv);background:var(--bg);color:var(--tx);font:600 15px 'Barlow Condensed',sans-serif;cursor:pointer">{{ speedTxt }}</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+<sc-if value="{{ isDecode }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="02 Расшифровка" style="flex:1;display:flex;flex-direction:column;padding:20px 16px 18px;gap:24px">
+  <div style="display:flex;align-items:center;gap:8px">
+    <button onClick="{{ goLibrary }}" style="flex:none;width:44px;height:44px;margin-left:-10px;border:none;background:transparent;color:var(--tx);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button>
+    <div style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:var(--mu)">РАСШИФРОВКА ЛОГА</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:4px">
+    <div style="font-size:16px;font-weight:600;word-break:break-all">{{ dec.file }}</div>
+    <div style="font-size:14px;color:var(--mu)">{{ dec.size }} · {{ dec.via }}</div>
+  </div>
+  <div style="position:relative;border:1px solid var(--dv);padding:18px 16px;display:flex;flex-direction:column;gap:14px">
+    <i style="position:absolute;top:-6px;left:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+    <i style="position:absolute;top:-6px;right:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+    <i style="position:absolute;bottom:-6px;left:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+    <i style="position:absolute;bottom:-6px;right:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+    <div style="display:flex;align-items:baseline;gap:6px"><span style="font:600 72px/0.9 'Barlow Condensed',sans-serif;letter-spacing:-.02em">{{ decPct }}</span><span style="font:500 28px 'Barlow Condensed',sans-serif;color:var(--mu)">%</span><span style="margin-left:auto;font-size:13px;color:var(--mu)">{{ decRate }}</span></div>
+    <div style="height:6px;background:var(--sf2)"><div style="height:100%;background:var(--ac);width:{{ decPctCss }}"></div></div>
+  </div>
+  <div style="display:flex;flex-direction:column;border-top:1px solid var(--dv)">
+    <sc-for list="{{ decStages }}" as="ds" hint-placeholder-count="5">
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--dv)">
+        <span style="flex:none;width:20px;height:20px;border:1.5px solid {{ ds.ring }};background:{{ ds.fill }};display:flex;align-items:center;justify-content:center;font:700 12px Barlow,sans-serif;color:var(--onac)">{{ ds.mark }}</span>
+        <span style="flex:1;font-size:15px;color:{{ ds.color }}">{{ ds.label }}</span>
+        <span style="font-size:13px;color:var(--mu)">{{ ds.note }}</span>
+      </div>
+    </sc-for>
+  </div>
+  <sc-if value="{{ decDone }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:14px">
+      <div style="border:1px solid var(--ac);background:var(--ac1);padding:12px 14px;display:flex;flex-direction:column;gap:2px">
+        <div style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.14em;color:var(--act);padding-bottom:4px">ФОРМАТ ОПРЕДЕЛЁН</div>
+        <div style="font-size:16px;font-weight:600">{{ dec.fmt }}</div>
+        <div style="font-size:14px;color:var(--mu)">{{ dec.det }}</div>
+      </div>
+      <button onClick="{{ openDecoded }}" style="height:52px;border:none;background:var(--ac);color:var(--onac);font:600 17px 'Barlow Condensed',sans-serif;letter-spacing:.08em;cursor:pointer" style-hover="background:var(--act)">ОТКРЫТЬ ПОЛЁТ</button>
+    </div>
+  </sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ isCompare }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="04 Сравнение" style="flex:1;min-height:0;display:flex;flex-direction:column">
+  <div style="flex:none;padding:4px 8px 8px 4px;display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--dv)">
+    <button onClick="{{ goLibrary }}" style="flex:none;width:44px;height:48px;border:none;background:transparent;color:var(--tx);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg></button>
+    <div style="font:600 22px/1.1 'Barlow Condensed',sans-serif">Сравнение полётов</div>
+  </div>
+  <div style="flex:1;min-height:0;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--dv);border-left:1px solid var(--dv)">
+      <sc-for list="{{ cmpLogs }}" as="cl" hint-placeholder-count="2">
+        <div style="padding:10px 12px;border-right:1px solid var(--dv);border-bottom:1px solid var(--dv);display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;align-items:center;gap:6px"><span style="width:16px;height:3px;background:{{ cl.color }}"></span><span style="font:600 13px 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:var(--mu)">{{ cl.tag }}</span></div>
+          <span style="font-size:14.5px;font-weight:600;line-height:1.3">{{ cl.title }}</span>
+          <span style="font-size:12.5px;color:var(--mu)">{{ cl.date }} · {{ cl.dur }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--dv)">
+      <sc-for list="{{ cmpChs }}" as="cc" hint-placeholder-count="4">
+        <button onClick="{{ cc.onClick }}" style="height:36px;border:none;background:{{ cc.bg }};color:{{ cc.color }};font:500 14px Barlow,sans-serif;cursor:pointer">{{ cc.label }}</button>
+      </sc-for>
+    </div>
+    <div style="position:relative;border:1px solid var(--dv);padding:12px">
+      <i style="position:absolute;top:-6px;left:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+      <i style="position:absolute;top:-6px;right:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+      <i style="position:absolute;bottom:-6px;left:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+      <i style="position:absolute;bottom:-6px;right:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+      <div style="display:flex;align-items:baseline;gap:8px;padding-bottom:8px"><span style="font-size:15px;font-weight:600">{{ cmpTitle }}</span><span style="margin-left:auto;font-size:12.5px;color:var(--mu)">ось X — время от взлёта</span></div>
+      <div style="height:150px;background-image:linear-gradient(var(--grid) 1px,transparent 1px);background-size:100% 30px">{{ cmpSvg }}</div>
+      <div style="display:flex;font-size:12px;color:var(--mu);padding-top:6px"><span>00:00</span><span style="margin-left:auto">{{ durTxt }}</span></div>
+    </div>
+    <div style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:var(--mu);padding-top:6px">МЕТРИКИ</div>
+    <div style="border-top:1px solid var(--dv)">
+      <div style="display:grid;grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(0,1fr));gap:8px;padding:8px 0;border-bottom:1px solid var(--dv);font:600 12px 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:var(--mu)"><span></span><span style="text-align:right">A</span><span style="text-align:right">B</span><span style="text-align:right">Δ</span></div>
+      <sc-for list="{{ cmpRows }}" as="cr" hint-placeholder-count="6">
+        <div style="display:grid;grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(0,1fr));gap:8px;padding:9px 0;border-bottom:1px solid var(--dv);font-size:14px">
+          <span style="color:var(--mu)">{{ cr.k }}</span><span style="text-align:right;font-weight:600">{{ cr.a }}</span><span style="text-align:right">{{ cr.b }}</span><span style="text-align:right;font-weight:600;color:{{ cr.dColor }}">{{ cr.d }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:var(--mu);padding-top:6px">РАЗЛИЧИЯ В ПАРАМЕТРАХ · {{ pDiffN }}</div>
+    <div style="border-top:1px solid var(--dv)">
+      <sc-for list="{{ pDiff }}" as="pd" hint-placeholder-count="4">
+        <div style="display:flex;align-items:baseline;gap:8px;padding:9px 0;border-bottom:1px solid var(--dv)">
+          <span style="flex:1;font:600 15px 'Barlow Condensed',sans-serif;letter-spacing:.03em">{{ pd.name }}</span>
+          <span style="font:600 15px 'Barlow Condensed',sans-serif;color:var(--act)">{{ pd.a }}</span>
+          <span style="font-size:13px;color:var(--mu)">→</span>
+          <span style="min-width:44px;text-align:right;font:600 15px 'Barlow Condensed',sans-serif;color:var(--mu)">{{ pd.b }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</sc-if>
+<sc-if value="{{ isExport }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="05 Экспорт" style="flex:1;min-height:0;display:flex;flex-direction:column">
+  <div style="flex:none;padding:4px 8px 8px 4px;display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--dv)">
+    <button onClick="{{ backToFlight }}" style="flex:none;width:44px;height:48px;border:none;background:transparent;color:var(--tx);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg></button>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="font:600 22px/1.1 'Barlow Condensed',sans-serif">Экспорт и отчёт</div>
+      <div style="font-size:13px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ log.title }}</div>
+    </div>
+  </div>
+  <div style="flex:1;min-height:0;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
+    <div style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:var(--mu)">ФОРМАТ</div>
+    <div style="border-top:1px solid var(--dv)">
+      <sc-for list="{{ exFmts }}" as="xf" hint-placeholder-count="5">
+        <div onClick="{{ xf.onClick }}" style="display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--dv);background:{{ xf.bg }};cursor:pointer" style-hover="background:var(--sf)">
+          <span style="flex:none;width:20px;height:20px;border-radius:50%;border:1.5px solid {{ xf.ring }};display:flex;align-items:center;justify-content:center"><span style="width:10px;height:10px;border-radius:50%;background:var(--ac);opacity:{{ xf.dot }}"></span></span>
+          <div style="flex:1;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:600">{{ xf.title }}</span><span style="font-size:13px;color:var(--mu)">{{ xf.sub }}</span></div>
+          <span style="font:600 13px 'Barlow Condensed',sans-serif;letter-spacing:.06em;color:var(--act)">{{ xf.ext }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <sc-if value="{{ isPdf }}" hint-placeholder-val="{{ true }}">
+      <div style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:var(--mu);padding-top:8px">РАЗДЕЛЫ ОТЧЁТА</div>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div style="flex:1;display:flex;flex-direction:column">
+          <sc-for list="{{ exSecs }}" as="xs" hint-placeholder-count="5">
+            <div onClick="{{ xs.onClick }}" style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer">
+              <span style="flex:none;width:20px;height:20px;border:1.5px solid {{ xs.border }};background:{{ xs.bg }};color:var(--onac);display:flex;align-items:center;justify-content:center;font:700 12px Barlow,sans-serif">{{ xs.mark }}</span>
+              <span style="font-size:14.5px">{{ xs.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="position:relative;flex:none;width:118px;aspect-ratio:210/297;border:1px solid var(--dv);background:var(--bg);padding:9px 8px;display:flex;flex-direction:column;gap:5px">
+          <i style="position:absolute;top:-6px;left:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+          <i style="position:absolute;bottom:-6px;right:-6px;width:11px;height:11px;color:var(--mk);background:linear-gradient(currentColor,currentColor) 5px 0/1px 100% no-repeat,linear-gradient(currentColor,currentColor) 0 5px/100% 1px no-repeat"></i>
+          <span style="font:600 9px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.06em">ОТЧЁТ О ПОЛЁТЕ</span>
+          <span style="height:3px;width:70%;background:var(--sf2)"></span>
+          <sc-for list="{{ exBlocks }}" as="xb" hint-placeholder-count="4">
+            <span style="height:{{ xb.h }};border:1px solid var(--dv);background:{{ xb.bg }}"></span>
+          </sc-for>
+          <span style="margin-top:auto;font-size:8px;color:var(--mu)">{{ exPages }}</span>
+        </div>
+      </div>
+    </sc-if>
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0 0">
+      <span style="flex:1;font-size:13.5px;color:var(--mu)">{{ exNote }}</span>
+    </div>
+  </div>
+  <div style="flex:none;padding:12px 16px 16px;border-top:1px solid var(--dv);display:flex;gap:10px">
+    <button onClick="{{ exShare }}" style="flex:none;height:52px;padding:0 16px;border:1px solid var(--dv);background:transparent;color:var(--tx);font:600 16px 'Barlow Condensed',sans-serif;letter-spacing:.08em;cursor:pointer" style-hover="background:var(--sf)">ПОДЕЛИТЬСЯ</button>
+    <button onClick="{{ exSave }}" style="flex:1;height:52px;border:none;background:var(--ac);color:var(--onac);font:600 17px 'Barlow Condensed',sans-serif;letter-spacing:.08em;cursor:pointer" style-hover="background:var(--act)">СОХРАНИТЬ</button>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ closeSheet }}" style="position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:30"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;z-index:31;background:var(--bg);border-top:1px solid var(--dv);padding:10px 16px 18px;display:flex;flex-direction:column;gap:6px">
+  <div style="width:32px;height:4px;background:var(--mk);margin:0 auto 8px"></div>
+  <div style="font:600 24px/1.1 'Barlow Condensed',sans-serif;padding-bottom:6px">Импорт лога</div>
+  <sc-for list="{{ sources }}" as="so" hint-placeholder-count="2">
+    <div onClick="{{ so.onClick }}" style="display:flex;align-items:center;gap:14px;padding:12px;border:1px solid var(--dv);cursor:pointer" style-hover="background:var(--sf)">
+      <span style="flex:none;width:40px;height:40px;border:1px solid var(--ac);color:var(--act);display:flex;align-items:center;justify-content:center;font:600 13px 'Barlow Condensed',sans-serif;letter-spacing:.06em">{{ so.tag }}</span>
+      <div style="flex:1;display:flex;flex-direction:column"><span style="font-size:15.5px;font-weight:600">{{ so.title }}</span><span style="font-size:13px;color:var(--mu)">{{ so.sub }}</span></div>
+    </div>
+  </sc-for>
+  <div style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.14em;color:var(--mu);padding:14px 0 4px">НЕДАВНИЕ ФАЙЛЫ</div>
+  <sc-for list="{{ recent }}" as="rf" hint-placeholder-count="3">
+    <div onClick="{{ rf.onClick }}" style="display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--dv);cursor:pointer" style-hover="background:var(--sf)">
+      <span style="flex:none;width:52px;font:600 12px 'Barlow Condensed',sans-serif;letter-spacing:.06em;color:var(--act)">{{ rf.ext }}</span>
+      <span style="flex:1;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ rf.file }}</span>
+      <span style="flex:none;font-size:13px;color:var(--mu)">{{ rf.size }}</span>
+    </div>
+  </sc-for>
+  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--dv);border-left:1px solid var(--dv);margin-top:12px">
+    <sc-for list="{{ formats }}" as="fm" hint-placeholder-count="6">
+      <div style="padding:8px 10px;border-right:1px solid var(--dv);border-bottom:1px solid var(--dv);display:flex;flex-direction:column">
+        <span style="font:600 14px/1.2 'Barlow Condensed',sans-serif">{{ fm.ext }}</span>
+        <span style="font-size:12px;color:var(--mu)">{{ fm.fc }}</span>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:16px;right:16px;bottom:24px;z-index:40;background:var(--tx);color:var(--bg);font:500 14px Barlow,sans-serif;padding:12px 16px">{{ toast }}</div>
+</sc-if>
+
+</div>
+</div>
+</x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Прототип&quot;},&quot;units&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;metric&quot;,&quot;imperial&quot;],&quot;default&quot;:&quot;metric&quot;,&quot;tsType&quot;:&quot;'metric'|'imperial'&quot;,&quot;section&quot;:&quot;Прототип&quot;},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;library&quot;,&quot;flight&quot;,&quot;decode&quot;,&quot;compare&quot;,&quot;export&quot;],&quot;default&quot;:&quot;library&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Прототип&quot;}}">
+class Component extends DCLogic {
+  data = this.build();
+  state = {
+    screen: this.props.startScreen || 'library', theme: this.props.theme || 'light', logId: 'a1', tab: 'summary', t: 0.455, playing: false, speed: 30,
+    channels: ['alt', 'volt', 'vibe'], evFilter: 'all', q: '', pOnlyCh: false, sheet: false, dec: null, trackBy: 'spd', srcFilter: 'all', toast: '',
+    sel: false, picked: ['a1', 'a7'], cmpCh: 'volt', exFmt: 'pdf', exSec: { summary: true, track: true, charts: true, events: true, params: false },
+    logs: [
+      { id: 'a1', title: 'Обследование поля, участок 4', src: 'ArduPilot', ext: '.BIN', vehicle: 'ArduCopter 4.5.6 · CubeOrange+', date: 'Сегодня, 09:14', dur: '14:32', min: 14.5, dist: 3.6, st: 'warn', status: '2 предупр.' },
+      { id: 'a7', title: 'Обследование поля, участок 3', src: 'ArduPilot', ext: '.BIN', vehicle: 'ArduCopter 4.5.6 · CubeOrange+', date: '4 окт, 08:40', dur: '15:05', min: 15.1, dist: 3.7, st: 'ok', status: 'Норма' },
+      { id: 'a2', title: 'Фасад ТЦ «Галерея»', src: 'DJI', ext: '.txt', vehicle: 'Matrice 30T · FlightRecord v14', date: 'Вчера, 16:40', dur: '22:10', min: 22.2, dist: 2.1, st: 'ok', status: 'Норма' },
+      { id: 'a3', title: 'VTOL, переход в самолётный режим', src: 'PX4', ext: '.ulg', vehicle: 'PX4 v1.15 · Pixhawk 6X', date: '5 окт, 11:02', dur: '08:45', min: 8.75, dist: 6.8, st: 'crit', status: 'Потеря GPS' },
+      { id: 'a6', title: 'Подбор PID, рама 5"', src: 'Betaflight', ext: '.bbl', vehicle: 'Betaflight 4.5 · SpeedyBee F7', date: '4 окт, 19:30', dur: '04:12', min: 4.2, dist: 1.1, st: 'ok', status: 'Норма' },
+      { id: 'a4', title: 'Тренировка, площадка «Север»', src: 'DJI', ext: '.DAT', vehicle: 'Mavic 3 Enterprise', date: '3 окт, 18:25', dur: '31:05', min: 31.1, dist: 9.4, st: 'ok', status: 'Норма' },
+      { id: 'a5', title: 'Мониторинг ЛЭП, пролёт 12–18', src: 'ArduPilot', ext: '.tlog', vehicle: 'ArduPlane 4.5.4 · Matek H743', date: '1 окт, 07:50', dur: '41:20', min: 41.3, dist: 28.2, st: 'warn', status: '1 предупр.' },
+      { id: 'a8', title: 'Облёт крыла, проверка INAV', src: 'INAV', ext: '.TXT', vehicle: 'INAV 7.1 · Matek F405-WING', date: '28 сен, 14:10', dur: '18:40', min: 18.7, dist: 12.5, st: 'ok', status: 'Норма' },
+    ],
+  };
+
+  rnd(i, k) { const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  build() {
+    const D = 872, dt = 2, N = D / dt + 1;
+    const mp = [[0, 0], [40, 30]];
+    for (let r = 0; r < 6; r++) { const y = 30 + r * 50; const xs = r % 2 ? [520, 40] : [40, 520]; if (r > 0) mp.push([xs[0], y]); mp.push([xs[1], y]); }
+    const cum = [0]; for (let k = 1; k < mp.length; k++) cum.push(cum[k - 1] + Math.hypot(mp[k][0] - mp[k - 1][0], mp[k][1] - mp[k - 1][1]));
+    const L = cum[cum.length - 1];
+    const along = (d) => { for (let k = 1; k < mp.length; k++) if (d <= cum[k]) { const f = (d - cum[k - 1]) / (cum[k] - cum[k - 1]); return [mp[k - 1][0] + (mp[k][0] - mp[k - 1][0]) * f, mp[k - 1][1] + (mp[k][1] - mp[k - 1][1]) * f]; } return mp[mp.length - 1]; };
+    const pRtl = along(0.93 * L), ease = (x) => x * x * (3 - 2 * x);
+    const a = { t: [], x: [], y: [], alt: [], spd: [], volt: [], curr: [], vibe: [], sats: [], roll: [], pitch: [], yaw: [], voltB: [], vibeB: [], altB: [], currB: [] };
+    let mah = 0, mahB = 0;
+    for (let i = 0; i < N; i++) {
+      const t = i * dt; let p;
+      if (t < 45) p = [0, 0]; else if (t < 690) p = along((t - 45) / 645 * 0.93 * L);
+      else if (t < 820) { const f = ease((t - 690) / 130); p = [pRtl[0] * (1 - f), pRtl[1] * (1 - f)]; } else p = [0, 0];
+      let alt = 0;
+      if (t >= 20 && t < 45) alt = 80 * ease((t - 20) / 25); else if (t >= 45 && t < 820) alt = 80 + Math.sin(i * 0.7) * 0.4 + (this.rnd(i, 1) - 0.5) * 0.8;
+      else if (t >= 820 && t < 858) alt = 80 * (1 - ease((t - 820) / 38));
+      let curr = 0.7; if (t >= 20 && t < 45) curr = 34; else if (t >= 45 && t < 690) curr = 21 + this.rnd(i, 2) * 3; else if (t >= 690 && t < 820) curr = 23; else if (t >= 820 && t < 858) curr = 15;
+      mah += curr * dt / 3.6;
+      const sag = t > 600 && t < 700 ? 0.42 * Math.min(1, (t - 600) / 88) : 0;
+      const volt = 25.2 - 2.9 * (mah / 5400) - curr * 0.055 - sag + (this.rnd(i, 3) - 0.5) * 0.06;
+      const air = alt > 0.5;
+      let vibe = air ? 9 + this.rnd(i, 4) * 3 : 1 + this.rnd(i, 4);
+      if (t >= 376 && t <= 420) vibe += 23 * Math.sin(Math.PI * (t - 376) / 44);
+      const sats = t >= 500 && t < 524 ? 14 : 19 + Math.round(this.rnd(i, 5));
+      const cB = curr * 0.93; mahB += cB * dt / 3.6;
+      a.t.push(t); a.x.push(p[0]); a.y.push(p[1]); a.alt.push(Math.max(0, alt)); a.curr.push(curr); a.volt.push(volt); a.vibe.push(vibe); a.sats.push(sats);
+      a.currB.push(cB); a.altB.push(Math.max(0, alt)); a.voltB.push(25.2 - 2.4 * (mahB / 5400) - cB * 0.04 + (this.rnd(i, 7) - 0.5) * 0.06);
+      a.vibeB.push(air ? 8 + this.rnd(i, 8) * 3 : 1 + this.rnd(i, 8));
+      a.roll.push(air ? (this.rnd(i, 9) - 0.5) * 6 : 0); a.pitch.push(air ? -6 + (this.rnd(i, 10) - 0.5) * 3 : 0);
+    }
+    for (let i = 0; i < N; i++) {
+      const j = Math.max(0, i - 1), dx = a.x[i] - a.x[j], dy = a.y[i] - a.y[j], h = Math.hypot(dx, dy) / dt;
+      a.spd.push(h > 0.05 ? h + (this.rnd(i, 6) - 0.5) * 0.3 : 0);
+      a.yaw.push(h > 0.05 ? ((Math.atan2(dx, dy) * 180 / Math.PI) + 360) % 360 : (i ? a.yaw[i - 1] : 0));
+    }
+    for (let i = 1; i < N - 1; i++) a.spd[i] = (a.spd[i - 1] + a.spd[i] + a.spd[i + 1]) / 3;
+    a.mah = mah; a.mahB = mahB; a.D = D; a.N = N; a.L = L;
+    return a;
+  }
+
+  componentDidMount() {
+    if (this.state.screen === 'decode') this.startDecode('bin');
+    this.iv = setInterval(() => {
+      const s = this.state;
+      if (s.playing) { const nt = s.t + s.speed * 0.05 / this.data.D; this.setState(nt >= 1 ? { t: 1, playing: false } : { t: nt }); }
+      if (s.dec && s.dec.p < 1) this.setState({ dec: { ...s.dec, p: Math.min(1, s.dec.p + 0.05 / 3.2) } });
+    }, 50);
+  }
+  componentWillUnmount() { clearInterval(this.iv); clearTimeout(this.tt); }
+  componentDidUpdate(pp) { if (pp.theme !== this.props.theme && this.props.theme) this.setState({ theme: this.props.theme }); }
+
+  fmtT(sec) { sec = Math.max(0, Math.round(sec)); return String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0'); }
+  showToast(msg) { clearTimeout(this.tt); this.setState({ toast: msg }); this.tt = setTimeout(() => this.setState({ toast: '' }), 2000); }
+  chip(on) { return { bg: on ? 'var(--tx)' : 'transparent', color: on ? 'var(--bg)' : 'var(--tx)', border: on ? 'var(--tx)' : 'var(--dv)' }; }
+  startDecode(key) { this.setState({ sheet: false, screen: 'decode', dec: { key, p: 0 } }); }
+
+  vLib() {
+    const s = this.state;
+    const imp = this.props.units === 'imperial';
+    const stC = { ok: 'var(--ok)', warn: 'var(--wr)', crit: 'var(--cr)' };
+    const srcChips = ['all', 'ArduPilot', 'PX4', 'DJI', 'Betaflight', 'INAV'].map((k) => ({ label: k === 'all' ? 'Все · ' + s.logs.length : k, ...this.chip(s.srcFilter === k), onClick: () => this.setState({ srcFilter: k }) }));
+    const logList = s.logs.filter((l) => s.srcFilter === 'all' || l.src === s.srcFilter).map((l) => {
+      const on = s.picked.includes(l.id);
+      return {
+        ...l, distTxt: (imp ? l.dist * 0.6214 : l.dist).toFixed(1).replace('.', ',') + (imp ? ' mi' : ' км'), stColor: stC[l.st],
+        selMode: s.sel, boxBorder: on ? 'var(--ac)' : 'var(--mk)', boxBg: on ? 'var(--ac)' : 'transparent', boxMark: on ? '✓' : '', rowBg: s.sel && on ? 'var(--ac1)' : 'transparent',
+        onClick: () => s.sel
+          ? this.setState((st) => ({ picked: st.picked.includes(l.id) ? st.picked.filter((x) => x !== l.id) : [...st.picked, l.id].slice(-2) }))
+          : this.setState({ logId: l.id, screen: 'flight', tab: 'summary' }),
+      };
+    });
+    const totMin = s.logs.reduce((acc, l) => acc + l.min, 0);
+    const n = s.picked.length;
+    const sources = [
+      ['FS', 'Файл с телефона или облака', 'Память, Google Диск, Яндекс Диск, Telegram', () => this.startDecode('bin')],
+      ['USB', 'Полётный контроллер по USB-OTG', 'ArduPilot / PX4 — загрузка с SD через MAVLink FTP', () => this.startDecode('usb')],
+    ].map(([tag, title, sub, onClick]) => ({ tag, title, sub, onClick }));
+    const recent = [['bin', '.BIN', '00000048.BIN', '41,2 МБ'], ['dji', '.txt', 'DJIFlightRecord_2026-10-08_[10-02-11].txt', '6,8 МБ'], ['ulg', '.ulg', 'log_17_2026-10-07-14-22-08.ulg', '28,9 МБ'], ['bbl', '.bbl', 'btfl_003.bbl', '9,1 МБ']]
+      .map(([k, ext, file, size]) => ({ ext, file, size, onClick: () => this.startDecode(k) }));
+    const formats = [['.bin', 'ArduPilot'], ['.tlog', 'MAVLink'], ['.ulg', 'PX4'], ['.txt', 'DJI'], ['.DAT', 'DJI'], ['.bbl .TXT', 'BF / INAV']].map(([ext, fc]) => ({ ext, fc }));
+    return {
+      libSummary: s.logs.length + ' логов · ' + Math.floor(totMin / 60) + ' ч ' + String(Math.round(totMin % 60)).padStart(2, '0') + ' мин налёта',
+      srcChips, logList, sources, recent, formats,
+      selMode: s.sel, notSel: !s.sel, toggleSel: () => this.setState((st) => ({ sel: !st.sel })),
+      selBtnBg: s.sel ? 'var(--tx)' : 'transparent', selBtnColor: s.sel ? 'var(--bg)' : 'var(--tx)', selBtnBorder: s.sel ? 'var(--tx)' : 'var(--dv)',
+      selHint: n === 2 ? 'Выбрано 2 полёта' : 'Выберите 2 полёта · ' + n + ' из 2',
+      cmpBtnBg: 'var(--ac)', cmpBtnOp: n === 2 ? 1 : 0.45,
+      openCompare: () => { if (n === 2) this.setState({ screen: 'compare', sel: false }); },
+      usbImport: () => this.startDecode('usb'),
+      openSheet: () => this.setState({ sheet: true }), closeSheet: () => this.setState({ sheet: false }), sheetOpen: s.sheet,
+    };
+  }
+
+  decSources = {
+    bin: { file: '00000048.BIN', size: '41,2 МБ', via: 'Файлы · Google Диск', fmt: 'ArduPilot DataFlash (.BIN)', det: 'ArduCopter V4.5.6 · CubeOrange+ · Quad X', src: 'ArduPilot', ext: '.BIN', mb: 41.2,
+      stages: [['Определение формата', 'сигнатура A3 95'], ['Чтение FMT / FMTU', '62 типа'], ['Разбор сообщений', '1 284 566'], ['Синхронизация по GPS-времени', 'UTC+3'], ['Поиск событий и аномалий', '11 событий']] },
+    usb: { file: '00000049.BIN', size: '12,7 МБ', via: 'CubeOrange+ · USB-OTG · MAVLink FTP', fmt: 'ArduPilot DataFlash (.BIN)', det: 'ArduCopter V4.5.6 · загружено с SD-карты', src: 'ArduPilot', ext: '.BIN', mb: 12.7,
+      stages: [['Подключение MAVLink', '115200 бод'], ['Загрузка с SD-карты', '12,7 МБ'], ['Разбор сообщений', '402 118'], ['Синхронизация по GPS-времени', 'UTC+3'], ['Поиск событий и аномалий', '6 событий']] },
+    dji: { file: 'DJIFlightRecord_2026-10-08_[10-02-11].txt', size: '6,8 МБ', via: 'Файлы · DJI Fly', fmt: 'DJI FlightRecord v14 · зашифрован', det: 'Mavic 3 Enterprise · ключ получен через DJI API', src: 'DJI', ext: '.txt', mb: 6.8,
+      stages: [['Определение версии записи', 'v14'], ['Получение ключа расшифровки', 'DJI API'], ['Расшифровка AES-блоков', '3 812'], ['Разбор кадров OSD, батареи, RC', '58 204'], ['Поиск событий и аномалий', '4 события']] },
+    ulg: { file: 'log_17_2026-10-07-14-22-08.ulg', size: '28,9 МБ', via: 'Файлы · память телефона', fmt: 'PX4 ULog', det: 'PX4 v1.15 · Pixhawk 6X · VTOL Standard', src: 'PX4', ext: '.ulg', mb: 28.9,
+      stages: [['Определение формата', 'ULog v1'], ['Чтение определений топиков', '118'], ['Разбор сообщений', '902 340'], ['Синхронизация времени', 'UTC+3'], ['Поиск событий и аномалий', '7 событий']] },
+    bbl: { file: 'btfl_003.bbl', size: '9,1 МБ', via: 'Файлы · Telegram', fmt: 'Betaflight Blackbox', det: 'Betaflight 4.5.1 · SpeedyBee F7 V3 · 2 кГц', src: 'Betaflight', ext: '.bbl', mb: 9.1,
+      stages: [['Определение формата', 'H Product:Blackbox'], ['Чтение заголовка и полей', '96 полей'], ['Декодирование I/P-кадров', '503 880'], ['Расчёт спектра гироскопа', 'FFT'], ['Поиск событий и аномалий', '2 события']] },
+  };
+
+  events = [
+    [0, 'info', 'Лог начат', 'DataFlash, 62 типа сообщений', 'MSG'],
+    [6, 'mode', 'Режим LOITER', 'Переключение с пульта, канал 5', 'MODE'],
+    [18, 'info', 'ARM', 'Предстартовые проверки пройдены', 'EV'],
+    [20, 'mode', 'Режим AUTO', 'Миссия: 14 точек, NAV_TAKEOFF 80 м', 'MODE'],
+    [376, 'warn', 'Вибрации Z > 30 м/с²', 'Пик 34,1 м/с², клиппинг IMU0 +214', 'VIBE'],
+    [500, 'info', 'Снижение числа спутников', '19 → 14, HDOP 1,4, длилось 24 с', 'GPS'],
+    [690, 'warn', 'Failsafe: низкое напряжение', '21,28 В (3,55 В/яч), BATT_FS_LOW_ACT = RTL', 'ERR'],
+    [690, 'mode', 'Режим RTL', 'Причина: battery failsafe', 'MODE'],
+    [820, 'mode', 'Режим LAND', 'Снижение над точкой старта', 'MODE'],
+    [858, 'info', 'Посадка', 'Обнаружен контакт с землёй', 'EV'],
+    [862, 'info', 'DISARM', 'Моторы остановлены', 'EV'],
+  ].map(([t, sev, title, detail, msg]) => ({ t, sev, title, detail, msg }));
+
+  params = [
+    ['BATT_LOW_VOLT', '21.3', 'Порог низкого напряжения, В', '10.5'],
+    ['BATT_CRT_VOLT', '20.4', 'Критический порог напряжения, В', '0'],
+    ['BATT_FS_LOW_ACT', '2 · RTL', 'Действие при низком напряжении', null],
+    ['BATT_CAPACITY', '10000', 'Ёмкость батареи, mAh', '3300'],
+    ['RTL_ALT', '8000', 'Высота возврата, см', '1500'],
+    ['WPNAV_SPEED', '500', 'Скорость в миссии, см/с', null],
+    ['INS_ACCEL_FILTER', '20', 'Фильтр акселерометра, Гц', null],
+    ['INS_HNTCH_ENABLE', '0', 'Гармонический notch-фильтр', null],
+    ['ATC_RAT_RLL_P', '0.135', 'P угловой скорости, крен', '0.135'],
+    ['ATC_RAT_PIT_P', '0.135', 'P угловой скорости, тангаж', '0.135'],
+    ['ATC_RAT_YAW_P', '0.18', 'P угловой скорости, рыскание', '0.18'],
+    ['MOT_PWM_TYPE', '6 · DShot600', 'Протокол регуляторов', '0'],
+    ['MOT_THST_HOVER', '0.31', 'Газ висения (обучен)', '0.35'],
+    ['FENCE_ENABLE', '1', 'Геозона', '0'],
+    ['FS_THR_ENABLE', '1', 'Failsafe по потере RC', null],
+    ['EK3_SRC1_YAW', '1 · компас', 'Источник курса EKF3', null],
+    ['FRAME_CLASS', '1 · Quad', 'Тип рамы', '0'],
+    ['LOG_BITMASK', '176126', 'Состав записываемых сообщений', null],
+  ].map(([name, value, desc, def]) => ({ name, value, desc, def, ch: !!def && def !== value }));
+
+  ctx() {
+    const imp = this.props.units === 'imperial';
+    return {
+      imp, conv: (k, v) => imp ? (k === 'alt' ? v * 3.281 : k === 'spd' ? v * 2.237 : v) : v,
+      unit: { alt: imp ? 'ft' : 'м', spd: imp ? 'mph' : 'м/с', volt: 'В', curr: 'А', vibe: 'м/с²', sats: '', roll: '°', pitch: '°' },
+      distU: imp ? 'mi' : 'км', distF: (km) => (imp ? km * 0.6214 : km).toFixed(1).replace('.', ','),
+    };
+  }
+  seg(on) { return { bg: on ? 'var(--tx)' : 'transparent', color: on ? 'var(--bg)' : 'var(--tx)' }; }
+
+  vFlight() {
+    const s = this.state, d = this.data, D = d.D, { conv, unit, distU, distF, imp } = this.ctx();
+    const i = Math.round(s.t * (d.N - 1));
+    const log = s.logs.find((l) => l.id === s.logId) || s.logs[0];
+    const tabs = [['summary', 'СВОДКА', '2'], ['track', 'ТРЕК', ''], ['charts', 'ГРАФИКИ', ''], ['events', 'СОБЫТИЯ', ''], ['params', 'PARM', '']]
+      .map(([id, label, badge]) => ({ label, badge, badgeOp: badge ? 1 : 0, line: s.tab === id ? 'var(--ac)' : 'transparent', color: s.tab === id ? 'var(--tx)' : 'var(--mu)', onClick: () => this.setState({ tab: id }) }));
+    const issues = [
+      { title: 'Вибрации по оси Z', time: '06:16–07:00', text: 'Пик 34,1 м/с² при пороге 30, клиппинг IMU0 +214. Проверьте балансировку винтов и демпферы; notch-фильтр выключен (INS_HNTCH_ENABLE = 0).', cta: 'График вибраций', ch: 'vibe', at: 398 },
+      { title: 'Battery failsafe → RTL', time: '11:30', text: 'Напряжение под нагрузкой 21,28 В (3,55 В/яч) при израсходованных 52% ёмкости. Просадка растёт с 10:00 — возможна деградация АКБ.', cta: 'График напряжения', ch: 'volt', at: 688 },
+    ].map((it) => ({ ...it, onClick: () => this.setState((st) => ({ tab: 'charts', t: it.at / D, channels: st.channels.includes(it.ch) ? st.channels : [it.ch, ...st.channels] })) }));
+    const maxAlt = Math.max(...d.alt), maxSpd = Math.max(...d.spd), minV = Math.min(...d.volt);
+    const stats = [
+      ['Длительность', log.dur, '', 'в воздухе 13:58', 'var(--tx)'],
+      ['Дистанция', distF(log.dist), distU, 'по треку GPS', 'var(--tx)'],
+      ['Макс. высота', conv('alt', maxAlt).toFixed(1).replace('.', ','), unit.alt, 'над точкой старта', 'var(--tx)'],
+      ['Макс. скорость', conv('spd', maxSpd).toFixed(1).replace('.', ','), unit.spd, 'горизонтальная', 'var(--tx)'],
+      ['Израсходовано', Math.round(d.mah).toLocaleString('ru-RU'), 'mAh', '52% от 10 000 mAh', 'var(--tx)'],
+      ['Мин. напряжение', minV.toFixed(2).replace('.', ','), 'В', '3,55 В на ячейку', 'var(--wr)'],
+    ].map(([label, value, u, sub, color]) => ({ label, value, unit: u, sub, color }));
+    const hw = [['Контроллер', 'CubeOrange+ · H757'], ['Прошивка', 'ArduCopter V4.5.6 (3a1f7c2)'], ['Рама', 'Quad X · 4 × T-Motor MN501'], ['GPS', 'Here3+ · u-blox M9N'], ['Батарея', '6S Li-ion · 10 000 mAh'], ['Файл', '00000047.BIN · 38,4 МБ']].map(([k, v]) => ({ k, v }));
+
+    const src = d[s.trackBy];
+    let mn = Infinity, mx = -Infinity;
+    for (let k = 0; k < d.N; k++) if (d.alt[k] > 1) { mn = Math.min(mn, src[k]); mx = Math.max(mx, src[k]); }
+    const W = 360, H = 230, sc = Math.min(336 / 540, 200 / 300), ox = (W - 540 * sc) / 2, oy = (H - 300 * sc) / 2;
+    const px = (x) => ox + (x + 10) * sc, py = (y) => H - oy - (y + 10) * sc;
+    const E = React.createElement, kids = [];
+    const ramp = s.theme === 'dark' ? ['#416180', '#597ea3', '#749dc4', '#94bce3', '#b5d9fd', '#eef6ff'] : ['#9ebbd8', '#749dc4', '#597ea3', '#416180', '#2c455d', '#1d2d3d'];
+    for (let k = 1; k < d.N; k++) {
+      if (d.x[k] === d.x[k - 1] && d.y[k] === d.y[k - 1]) continue;
+      const v = Math.min(1, Math.max(0, (src[k] - mn) / (mx - mn || 1)));
+      kids.push(E('line', { key: 's' + k, x1: px(d.x[k - 1]), y1: py(d.y[k - 1]), x2: px(d.x[k]), y2: py(d.y[k]), stroke: ramp[Math.min(5, Math.floor(v * 6))], strokeWidth: 3, opacity: k <= i ? 1 : 0.25 }));
+    }
+    this.events.filter((e) => e.sev === 'warn').forEach((e, n) => {
+      const k = Math.round(e.t / 2);
+      kids.push(E('rect', { key: 'w' + n, x: px(d.x[k]) - 5, y: py(d.y[k]) - 5, width: 10, height: 10, transform: `rotate(45 ${px(d.x[k])} ${py(d.y[k])})`, style: { fill: 'var(--bg)', stroke: 'var(--wr)' }, strokeWidth: 2 }));
+    });
+    kids.push(E('rect', { key: 'h', x: px(0) - 9, y: py(0) - 9, width: 18, height: 18, style: { fill: 'var(--tx)' } }));
+    kids.push(E('text', { key: 'ht', x: px(0), y: py(0) + 4.5, textAnchor: 'middle', fontSize: 12, fontWeight: 700, fontFamily: 'Barlow Condensed', style: { fill: 'var(--bg)' } }, 'H'));
+    kids.push(E('circle', { key: 'cr', cx: px(d.x[i]), cy: py(d.y[i]), r: 12, fill: 'none', style: { stroke: 'var(--tx)' }, strokeWidth: 1 }));
+    kids.push(E('circle', { key: 'cd', cx: px(d.x[i]), cy: py(d.y[i]), r: 5, style: { fill: 'var(--tx)' } }));
+    const mapSvg = E('svg', { viewBox: `0 0 ${W} ${H}`, style: { display: 'block', width: '100%', height: 'auto' } }, kids);
+    const legDec = s.trackBy === 'volt' ? 1 : 0;
+    const trackModes = [['spd', 'Скорость'], ['alt', 'Высота'], ['volt', 'Батарея']].map(([k, label]) => ({ label, ...this.seg(s.trackBy === k), onClick: () => this.setState({ trackBy: k }) }));
+    const vs = i ? (d.alt[i] - d.alt[i - 1]) / 2 : 0, home = Math.hypot(d.x[i], d.y[i]);
+    const att = [
+      ['КРЕН', d.roll[i].toFixed(1), '°'], ['ТАНГАЖ', d.pitch[i].toFixed(1), '°'], ['КУРС', String(Math.round(d.yaw[i])).padStart(3, '0'), '°'],
+      ['ВЕРТ. СКОР.', conv('spd', vs).toFixed(1), unit.spd], ['ДО ДОМА', imp ? Math.round(home * 3.281) : Math.round(home), imp ? 'ft' : 'м'], ['HDOP', d.sats[i] < 16 ? '1.4' : '0.6', ''],
+    ].map(([k, v, u]) => ({ k, v: String(v).replace('.', ','), u }));
+    return {
+      log, tabs, tabSummary: s.tab === 'summary', tabTrack: s.tab === 'track', tabCharts: s.tab === 'charts', tabEvents: s.tab === 'events', tabParams: s.tab === 'params',
+      issues, stats, hw, mapSvg, trackModes, att, scaleLabel: imp ? '330 ft' : '100 м',
+      legendMin: conv(s.trackBy, mn).toFixed(legDec) + ' ' + unit[s.trackBy], legendMax: conv(s.trackBy, mx).toFixed(legDec) + ' ' + unit[s.trackBy],
+      openExport: () => this.setState({ screen: 'export', playing: false }),
+      ...(this.vFlightB ? this.vFlightB(i) : {}),
+    };
+  }
+
+  CH = [
+    ['alt', 'Высота', 'CTUN.Alt', '10 Гц'], ['spd', 'Скорость', 'GPS.Spd', '5 Гц'], ['volt', 'Напряжение', 'BAT.Volt', '10 Гц'], ['curr', 'Ток', 'BAT.Curr', '10 Гц'],
+    ['vibe', 'Вибрации Z', 'VIBE.VibeZ', '10 Гц'], ['sats', 'Спутники', 'GPS.NSats', '5 Гц'], ['roll', 'Крен', 'ATT.Roll', '25 Гц'], ['pitch', 'Тангаж', 'ATT.Pitch', '25 Гц'],
+  ];
+
+  vFlightB(i) {
+    const s = this.state, d = this.data, D = d.D, tc = s.t * D, { conv, unit } = this.ctx(), E = React.createElement;
+    const chanChips = this.CH.map(([k, label]) => ({ label, ...this.chip(s.channels.includes(k)), onClick: () => this.setState((st) => ({ channels: st.channels.includes(k) ? st.channels.filter((x) => x !== k) : [...st.channels, k] })) }));
+    this.svgCache = this.svgCache || {};
+    const charts = this.CH.filter(([k]) => s.channels.includes(k)).map(([k, label, msg, rate]) => {
+      const arr = d[k];
+      let lo = Math.min(...arr), hi = Math.max(...arr);
+      if (k === 'vibe') { lo = 0; hi = 40; } else { const pad = (hi - lo) * 0.1 || 1; lo -= pad; hi += pad; }
+      if (!this.svgCache[k]) {
+        const Y = (v) => 84 - (v - lo) / (hi - lo) * 84;
+        let line = '';
+        for (let n = 0; n < d.N; n++) line += (n ? 'L' : 'M') + (n / (d.N - 1) * 320).toFixed(1) + ' ' + Y(arr[n]).toFixed(1);
+        const col = k === 'vibe' ? 'var(--wr)' : 'var(--ac)';
+        const ch = [E('path', { key: 'a', d: line + 'L320 84L0 84Z', style: { fill: k === 'vibe' ? 'var(--wr1)' : 'var(--ac1)' } }),
+          E('path', { key: 'l', d: line, fill: 'none', style: { stroke: col }, strokeWidth: 1.5, vectorEffect: 'non-scaling-stroke', strokeLinejoin: 'round' })];
+        const thr = k === 'vibe' ? 30 : k === 'volt' ? 21.3 : null;
+        if (thr) ch.push(E('line', { key: 't', x1: 0, x2: 320, y1: Y(thr), y2: Y(thr), style: { stroke: 'var(--cr)' }, strokeWidth: 1, strokeDasharray: '4 3', vectorEffect: 'non-scaling-stroke' }));
+        this.svgCache[k] = E('svg', { viewBox: '0 0 320 84', preserveAspectRatio: 'none', style: { display: 'block', width: '100%', height: 84 } }, ch);
+      }
+      const dec = k === 'sats' ? 0 : k === 'volt' ? 2 : 1, cv = arr[i];
+      const warn = (k === 'vibe' && cv > 30) || (k === 'volt' && cv < 21.6 && d.curr[i] > 1);
+      const f = (v) => conv(k, v).toFixed(dec).replace('.', ',');
+      return { label, msg, rate, unit: unit[k], svg: this.svgCache[k], cur: f(cv), curColor: warn ? 'var(--wr)' : 'var(--tx)', min: f(Math.min(...arr)), max: f(Math.max(...arr)) };
+    });
+    const evC = { info: 'var(--mu)', mode: 'var(--ac)', warn: 'var(--wr)', crit: 'var(--cr)' };
+    let curEv = -1; this.events.forEach((e, n) => { if (e.t <= tc + 0.5) curEv = n; });
+    const seekT = (sec) => this.setState({ t: Math.min(1, Math.max(0, sec / D)) });
+    const eventList = this.events.map((e, n) => ({ ...e, n })).filter((e) => s.evFilter === 'all' || (s.evFilter === 'warn' ? e.sev === 'warn' || e.sev === 'crit' : e.sev === 'mode'))
+      .map((e) => ({ time: this.fmtT(e.t), title: e.title, detail: e.detail, msg: e.msg, color: evC[e.sev], titleColor: e.sev === 'warn' ? 'var(--wr)' : 'var(--tx)', bg: e.n === curEv ? 'var(--ac1)' : 'transparent', onClick: () => seekT(e.t) }));
+    const evFilters = [['all', 'Все'], ['warn', 'Предупреждения'], ['mode', 'Режимы']].map(([k, label]) => ({ label, ...this.seg(s.evFilter === k), onClick: () => this.setState({ evFilter: k }) }));
+    const ticks = this.events.filter((e) => e.sev !== 'info').map((e) => ({ left: (e.t / D * 100).toFixed(2) + '%', color: e.sev === 'mode' ? 'var(--mk)' : 'var(--wr)' }));
+    const q = s.q.trim().toUpperCase();
+    const pl = this.params.filter((p) => (!q || p.name.includes(q) || p.desc.toUpperCase().includes(q)) && (!s.pOnlyCh || p.ch));
+    const paramList = pl.map((p) => ({ ...p, defTxt: p.ch ? 'по умолч. ' + p.def : '' }));
+    let mode = 'STABILIZE'; this.events.forEach((e) => { if (e.sev === 'mode' && e.t <= tc) mode = e.title.replace('Режим ', ''); });
+    const armed = tc >= 18 && tc < 862, lowV = d.volt[i] < 21.6 && d.curr[i] > 1;
+    const readouts = [
+      { k: 'ВЫС', v: conv('alt', d.alt[i]).toFixed(1), u: unit.alt, color: 'var(--tx)' },
+      { k: 'СКОР', v: conv('spd', d.spd[i]).toFixed(1), u: unit.spd, color: 'var(--tx)' },
+      { k: 'БАТ', v: d.volt[i].toFixed(2), u: 'В', color: lowV ? 'var(--wr)' : 'var(--tx)' },
+      { k: 'GPS', v: String(d.sats[i]), u: 'спутн.', color: d.sats[i] < 16 ? 'var(--wr)' : 'var(--tx)' },
+    ].map((r) => ({ ...r, v: r.v.replace('.', ',') }));
+    const seekFromX = (x, el) => { const r = el.getBoundingClientRect(); this.setState({ t: Math.min(1, Math.max(0, (x - r.left) / r.width)) }); };
+    return {
+      chanChips, charts, cursorPct: (s.t * 100).toFixed(2) + '%', durTxt: this.fmtT(D), seekChart: (e) => seekFromX(e.clientX, e.currentTarget),
+      evFilters, eventList, ticks,
+      q: s.q, onQuery: (e) => this.setState({ q: e.target.value }), paramList,
+      paramSummary: q || s.pOnlyCh ? 'Найдено: ' + pl.length : '847 параметров · ' + this.params.filter((p) => p.ch).length + ' отличаются от умолчаний',
+      toggleOnlyCh: () => this.setState((st) => ({ pOnlyCh: !st.pOnlyCh })),
+      onlyChBg: s.pOnlyCh ? 'var(--tx)' : 'transparent', onlyChColor: s.pOnlyCh ? 'var(--bg)' : 'var(--tx)', onlyChBorder: s.pOnlyCh ? 'var(--tx)' : 'var(--dv)',
+      readouts, timeTxt: this.fmtT(tc), modeTxt: armed ? mode : 'DISARMED', modeColor: !armed ? 'var(--mu)' : mode === 'RTL' ? 'var(--wr)' : 'var(--act)',
+      playing: s.playing, paused: !s.playing,
+      togglePlay: () => this.setState((st) => ({ playing: !st.playing, t: !st.playing && st.t >= 1 ? 0 : st.t })),
+      speedTxt: s.speed + '×', cycleSpeed: () => this.setState((st) => ({ speed: st.speed === 10 ? 30 : st.speed === 30 ? 60 : 10 })),
+      scrubDown: (e) => { this.drag = true; e.currentTarget.setPointerCapture && e.currentTarget.setPointerCapture(e.pointerId); seekFromX(e.clientX, e.currentTarget); },
+      scrubMove: (e) => { if (this.drag) seekFromX(e.clientX, e.currentTarget); },
+      scrubUp: () => { this.drag = false; },
+    };
+  }
+
+  vCompare() {
+    const s = this.state, d = this.data, E = React.createElement;
+    const [A, B] = s.picked.map((id) => s.logs.find((l) => l.id === id)).concat([s.logs[1]]).filter(Boolean);
+    const cmpLogs = [[A, 'ПОЛЁТ A', 'var(--ac)'], [B, 'ПОЛЁТ B', 'var(--mu)']].map(([l, tag, color]) => ({ title: l.title, date: l.date, dur: l.dur, tag, color }));
+    const map = { volt: ['volt', 'voltB', 'Напряжение, В', 21.3], vibe: ['vibe', 'vibeB', 'Вибрации Z, м/с²', 30], curr: ['curr', 'currB', 'Ток, А', null], alt: ['alt', 'altB', 'Высота, м', null] };
+    const [ka, kb, title, thr] = map[s.cmpCh];
+    const a = d[ka], b = d[kb];
+    let lo = Math.min(...a, ...b), hi = Math.max(...a, ...b); const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+    const Y = (v) => 150 - (v - lo) / (hi - lo) * 150, path = (arr) => arr.map((v, n) => (n ? 'L' : 'M') + (n / (d.N - 1) * 320).toFixed(1) + ' ' + Y(v).toFixed(1)).join('');
+    const kids = [
+      E('path', { key: 'b', d: path(b), fill: 'none', style: { stroke: 'var(--mu)' }, strokeWidth: 1.3, strokeDasharray: '3 2', vectorEffect: 'non-scaling-stroke' }),
+      E('path', { key: 'a', d: path(a), fill: 'none', style: { stroke: 'var(--ac)' }, strokeWidth: 1.8, vectorEffect: 'non-scaling-stroke' }),
+    ];
+    if (thr) kids.push(E('line', { key: 't', x1: 0, x2: 320, y1: Y(thr), y2: Y(thr), style: { stroke: 'var(--cr)' }, strokeWidth: 1, strokeDasharray: '4 3', vectorEffect: 'non-scaling-stroke' }));
+    const cmpSvg = E('svg', { viewBox: '0 0 320 150', preserveAspectRatio: 'none', style: { display: 'block', width: '100%', height: 150 } }, kids);
+    const cmpChs = [['volt', 'Батарея'], ['vibe', 'Вибрации'], ['curr', 'Ток'], ['alt', 'Высота']].map(([k, label]) => ({ label, ...this.seg(s.cmpCh === k), onClick: () => this.setState({ cmpCh: k }) }));
+    const f = (v, n = 1) => v.toFixed(n).replace('.', ',');
+    const rows = [
+      ['Длительность', 872, 905, (v) => this.fmtT(v), 'neutral'], ['Израсходовано, mAh', d.mah, d.mahB, (v) => Math.round(v).toLocaleString('ru-RU'), 'lower'],
+      ['Мин. напряжение, В', Math.min(...d.volt), Math.min(...d.voltB), (v) => f(v, 2), 'higher'], ['Ср. ток, А', 21.4, 19.9, (v) => f(v), 'lower'],
+      ['Пик вибраций Z', Math.max(...d.vibe), Math.max(...d.vibeB), (v) => f(v), 'lower'], ['Клиппинг IMU0', 214, 0, (v) => String(v), 'lower'],
+    ];
+    const cmpRows = rows.map(([k, va, vb, fm, better]) => {
+      const diff = va - vb, worse = better === 'lower' ? diff > 0.0001 : better === 'higher' ? diff < -0.0001 : false;
+      const ds = k === 'Длительность' ? (diff < 0 ? '−' : '+') + this.fmtT(Math.abs(diff)) : (diff > 0 ? '+' : diff < 0 ? '−' : '') + fm(Math.abs(diff));
+      return { k, a: fm(va), b: fm(vb), d: Math.abs(diff) < 0.0001 ? '0' : ds, dColor: worse ? 'var(--wr)' : 'var(--mu)' };
+    });
+    const pDiff = [['INS_HNTCH_ENABLE', '0', '1'], ['MOT_THST_HOVER', '0.31', '0.29'], ['BATT_LOW_VOLT', '21.3', '21.0'], ['ATC_RAT_RLL_P', '0.135', '0.120']].map(([name, a, b]) => ({ name, a, b }));
+    return { cmpLogs, cmpSvg, cmpChs, cmpTitle: title, cmpRows, pDiff, pDiffN: String(pDiff.length), durTxt: this.fmtT(d.D) };
+  }
+
+  vExport() {
+    const s = this.state;
+    const fmts = [
+      ['pdf', 'PDF-отчёт', 'Сводка, трек, графики и события для заказчика', '.pdf', '1,8 МБ'],
+      ['csv', 'Каналы в CSV', 'Выбранные каналы графиков, общая шкала времени', '.csv', '6,4 МБ'],
+      ['kml', 'Трек для Google Earth', '3D-трек с высотой и точками событий', '.kml', '220 КБ'],
+      ['gpx', 'Трек GPX', 'Для ГИС и навигационных приложений', '.gpx', '140 КБ'],
+      ['param', 'Параметры контроллера', 'Полный набор PARM для Mission Planner / QGC', '.param', '24 КБ'],
+    ];
+    const cur = fmts.find((f) => f[0] === s.exFmt);
+    const exFmts = fmts.map(([k, title, sub, ext]) => ({ title, sub, ext, ring: s.exFmt === k ? 'var(--ac)' : 'var(--mk)', dot: s.exFmt === k ? 1 : 0, bg: s.exFmt === k ? 'var(--ac1)' : 'transparent', onClick: () => this.setState({ exFmt: k }) }));
+    const secs = [['summary', 'Сводка и борт'], ['track', 'Карта трека'], ['charts', 'Графики каналов'], ['events', 'Журнал событий'], ['params', 'Изменённые параметры']];
+    const exSecs = secs.map(([k, label]) => { const on = s.exSec[k]; return { label, mark: on ? '✓' : '', bg: on ? 'var(--ac)' : 'transparent', border: on ? 'var(--ac)' : 'var(--mk)', onClick: () => this.setState((st) => ({ exSec: { ...st.exSec, [k]: !st.exSec[k] } })) }; });
+    const hMap = { summary: '18px', track: '34px', charts: '26px', events: '14px', params: '12px' };
+    const exBlocks = secs.filter(([k]) => s.exSec[k]).map(([k]) => ({ h: hMap[k], bg: k === 'track' || k === 'charts' ? 'var(--ac1)' : 'transparent' }));
+    const nOn = exBlocks.length, fname = '2026-10-08_участок-4' + cur[3];
+    return {
+      exFmts, exSecs, exBlocks, isPdf: s.exFmt === 'pdf', exPages: nOn > 3 ? '3 стр.' : nOn ? nOn + ' стр.' : '—',
+      exNote: fname + ' · ≈ ' + cur[4],
+      backToFlight: () => this.setState({ screen: 'flight' }),
+      exSave: () => this.showToast(fname + ' сохранён в «Загрузки»'),
+      exShare: () => this.showToast('Открыто меню «Поделиться»'),
+    };
+  }
+
+  vDecode() {
+    const s = this.state;
+    const dec = s.dec ? this.decSources[s.dec.key] : { file: '', size: '', via: '', fmt: '', det: '', stages: [], mb: 0 };
+    const p = s.dec ? s.dec.p : 0;
+    const decStages = dec.stages.map(([label, note], n) => {
+      const done = p >= (n + 1) / 5, act = !done && p >= n / 5;
+      return { label, note: done ? note : '', mark: done ? '✓' : '', ring: done || act ? 'var(--ac)' : 'var(--mk)', fill: done ? 'var(--ac)' : 'transparent', color: done || act ? 'var(--tx)' : 'var(--mu)' };
+    });
+    return {
+      dec, decPct: String(Math.round(p * 100)), decPctCss: (p * 100).toFixed(1) + '%', decStages, decDone: p >= 1,
+      decRate: p < 1 ? (dec.mb / 3.2).toFixed(1).replace('.', ',') + ' МБ/с' : 'готово',
+      openDecoded: () => {
+        const ds = this.decSources[s.dec.key];
+        const nl = { id: 'n' + Date.now(), title: ds.file.length > 22 ? ds.file.slice(0, 20) + '…' : ds.file, src: ds.src, ext: ds.ext, vehicle: ds.det.split(' · ').slice(0, 2).join(' · '), date: 'Только что', dur: '14:32', min: 14.5, dist: 3.6, st: 'warn', status: '2 предупр.' };
+        this.setState((st) => ({ logs: [nl, ...st.logs], logId: nl.id, screen: 'flight', tab: 'summary', dec: null, t: 0 }));
+      },
+    };
+  }
+
+  bare() { return this.props.frame === 'none' || /[?&]app=1/.test(location.search) || window.innerWidth < 500 || /wv\)|FlightLogApp/.test(navigator.userAgent); }
+
+  renderVals() {
+    const s = this.state;
+    return {
+      frameComp: this.bare() ? 'BareFrame' : 'AndroidDevice', wrapPad: this.bare() ? '0' : '32px 20px',
+      theme: s.theme, isDark: s.theme === 'dark', toggleTheme: () => this.setState((st) => ({ theme: st.theme === 'dark' ? 'light' : 'dark' })),
+      isLibrary: s.screen === 'library', isFlight: s.screen === 'flight', isDecode: s.screen === 'decode', isCompare: s.screen === 'compare', isExport: s.screen === 'export',
+      goLibrary: () => this.setState({ screen: 'library', playing: false }),
+      hasToast: !!s.toast, toast: s.toast,
+      ...this.vLib(),
+      ...(this.vDecode ? this.vDecode() : {}),
+      ...(this.vFlight ? this.vFlight() : {}),
+      ...(this.vCompare ? this.vCompare() : {}),
+      ...(this.vExport ? this.vExport() : {}),
+    };
+  }
+}
+</script>
+</body>
+</html>
