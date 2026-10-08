@@ -2,18 +2,59 @@ name: Build APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ '**' ]
     tags: [ 'v*' ]
-    paths: [ 'flight-log-reader/android/**', '.github/workflows/build-apk.yml' ]
+    paths: [ 'flight-log-reader/**', '.github/workflows/build-apk.yml' ]
   pull_request:
-    paths: [ 'flight-log-reader/android/**', '.github/workflows/build-apk.yml' ]
+    paths: [ 'flight-log-reader/**', '.github/workflows/build-apk.yml' ]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  native:
+    name: Native app (Compose)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flight-log-reader/native
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v3
+
+      - name: Core tests
+        run: ./gradlew :core:test --no-daemon
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: core-test-report
+          path: flight-log-reader/native/core/build/reports/tests/test/
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flight-log-reader-debug
+          path: flight-log-reader/native/app/build/outputs/apk/debug/*.apk
+
+      - name: Publish release (on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: flight-log-reader/native/app/build/outputs/apk/debug/*.apk
+
+  webview-demo:
+    name: WebView prototype (demo)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -35,11 +76,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: flight-log-reader-debug
+          name: flight-log-reader-prototype-debug
           path: flight-log-reader/android/app/build/outputs/apk/debug/*.apk
-
-      - name: Publish release (on tag)
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: flight-log-reader/android/app/build/outputs/apk/debug/*.apk

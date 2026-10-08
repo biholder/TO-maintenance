@@ -69,10 +69,14 @@ Linux/macOS в Windows.
 
 - `flight-log-reader/design/` — дизайн-хэндофф: спецификация (`README.md`) и
   исходник интерактивного прототипа.
-- `flight-log-reader/android/` — WebView-обёртка, упаковывающая прототип в APK.
+- `flight-log-reader/native/` — **нативное приложение** (Kotlin + Jetpack Compose):
+  разбор ArduPilot `.bin` и MAVLink `.tlog` на устройстве, диагностика, графики,
+  трек, сравнение полётов, экспорт PDF/CSV/KML/GPX. Подробности —
+  `flight-log-reader/native/README.md`.
+- `flight-log-reader/android/` — WebView-обёртка исходного HTML-прототипа (демо).
   Прототип также открывается в браузере офлайн:
   `flight-log-reader/android/app/src/main/assets/index.html`.
 
 APK собирает GitHub Actions (workflow «Build APK»): **Actions → Build APK →
-Artifacts → flight-log-reader-debug**. Данные в прототипе демонстрационные —
-реальные парсеры логов ещё не подключены.
+Artifacts → flight-log-reader-debug** (нативное приложение) и
+`flight-log-reader-prototype-debug` (прототип).
