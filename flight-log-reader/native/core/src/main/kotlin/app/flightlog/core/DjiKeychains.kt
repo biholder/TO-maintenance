@@ -59,6 +59,7 @@ object DjiKeychains {
         val versions = (listOf(log.auxVersion) + listOf(1, 0)).distinct()
         val tried = ArrayList<String>()
         var lastApiError: ApiException? = null
+        var best: Pair<Float, String>? = null
         var attempt = 0
         for (v in versions) for (dep in departments) {
             if (attempt >= MAX_ATTEMPTS) break
@@ -75,9 +76,12 @@ object DjiKeychains {
                 continue
             }
             val fit = runCatching { log.keysFit(DjiMapper.parseKeychains(keys)) }.getOrDefault(0f)
-            if (fit >= 0.9f) return keys
+            if (fit >= GOOD_FIT) return keys
+            if (best == null || fit > best.first) best = fit to keys
             tried += "$label: подошло ${(fit * 100).toInt()}%"
         }
+        // Ни один вариант не идеален — берём лучший, если он явно не случайный.
+        best?.let { (fit, keys) -> if (fit >= MIN_FIT) return keys }
         throw ApiException(
             "Ключи DJI не подошли к логу ни в одном варианте запроса. ${log.diagnostics()}. Попытки: " +
                 tried.joinToString("; ").ifEmpty { lastApiError?.message ?: "—" },
@@ -85,6 +89,9 @@ object DjiKeychains {
     }
 
     private const val MAX_ATTEMPTS = 10
+    /** С верными ключами расшифровывается почти всё; с неверными — доли процента. */
+    private const val GOOD_FIT = 0.8f
+    private const val MIN_FIT = 0.5f
 
     private val DEPARTMENTS = mapOf(
         1 to "SDK", 2 to "DJI GO", 3 to "DJI Fly", 4 to "Agras", 5 to "Terra", 6 to "DJI Goggles", 7 to "DJI Pilot", 8 to "GS Pro",

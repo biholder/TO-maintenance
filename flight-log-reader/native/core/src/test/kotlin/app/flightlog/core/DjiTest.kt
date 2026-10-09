@@ -168,3 +168,23 @@ class DjiKeysTest {
         }
     }
 }
+
+class DjiPartialKeysTest {
+    private fun res(name: String) = javaClass.getResourceAsStream("/$name")!!.readBytes()
+
+    @Test
+    fun recordsWithoutIssuedKeyAreNotFailures() {
+        // DJI не выдаёт ключи для части служебных записей: здесь нет ключа батареи.
+        val keys = String(res("dji_v14.keychains.json"))
+        val chains = MiniJson.parse(keys) as List<*>
+        val withoutBattery = MiniJson.stringify(chains.map { c ->
+            (c as List<*>).filter { (it as Map<*, *>)["featurePoint"] != "FR_Standardization_Feature_Battery_13" }
+        })
+        val dji = DjiLog(ByteBuffer.wrap(res("dji_v14.txt")))
+        assertEquals(1f, dji.keysFit(DjiMapper.parseKeychains(withoutBattery)))
+        val log = LogReader.read(res("dji_v14.txt"), "dji_v14.txt", djiKeychains = withoutBattery).log
+        assertEquals(1200, log.series.getValue(Ch.ALT).size)
+        assertTrue(Ch.VOLT !in log.series, "без ключа батареи нет и её данных")
+        assertTrue(dji.aesNoKey > 0)
+    }
+}

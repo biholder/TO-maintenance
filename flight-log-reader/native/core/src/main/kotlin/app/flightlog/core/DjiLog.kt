@@ -78,10 +78,16 @@ class DjiLog(buffer: ByteBuffer) {
     /** Сырая запись после снятия XOR/AES. [data] пусто, если расшифровать не удалось. */
     class Record(val type: Int, val data: ByteArray)
 
-    /** Статистика последнего обхода: сколько записей шифровались AES и сколько не расшифровалось. */
+    /**
+     * Статистика последнего обхода: сколько записей расшифровывалось имеющимся ключом
+     * и сколько из них не расшифровалось. Записи, для которых DJI ключ не выдал
+     * (служебные: AfterSales, FlySafe…), сюда не входят — их пропускает и эталон.
+     */
     var aesTotal = 0
         private set
     var aesFailed = 0
+        private set
+    var aesNoKey = 0
         private set
 
     /**
@@ -103,6 +109,7 @@ class DjiLog(buffer: ByteBuffer) {
         var chain: HashMap<Int, Pair<ByteArray, ByteArray>>? = null
         aesTotal = 0
         aesFailed = 0
+        aesNoKey = 0
         val lenSize = if (version <= 12) 1 else 2
         var pos = recordsStart
         val end = minOf(recordsEnd, size)
@@ -134,9 +141,9 @@ class DjiLog(buffer: ByteBuffer) {
                         val ct = x.copyOf(len - 2)
                         val c = chain ?: pickChain(all, segment, feature, ct).also { chain = it }
                         val key = c[feature]
-                        aesTotal++
-                        if (key == null) { aesFailed++; ByteArray(0) }
+                        if (key == null) { aesNoKey++; ByteArray(0) }
                         else {
+                            aesTotal++
                             c[feature] = ct.copyOfRange(ct.size - 16, ct.size) to key.second
                             decryptAes(ct, key.first, key.second).also { if (it.isEmpty()) aesFailed++ }
                         }
