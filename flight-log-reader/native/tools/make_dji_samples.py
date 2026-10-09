@@ -62,9 +62,11 @@ def feature_v14(record_type):
 
 
 class Writer:
-    def __init__(self, version, keys=None):
+    def __init__(self, version, keys=None, chain="feature"):
         self.version = version
         self.keys = keys  # feature -> [key, iv] (iv обновляется по цепочке)
+        self.chain = chain  # "feature" (как в эталоне) или "type" — цепочка IV по типу записи
+        self.type_iv = {}
         self.out = bytearray()
         self.seed = 17
 
@@ -74,8 +76,11 @@ class Writer:
         feature = feature_v14(rtype) if self.version >= 13 else None
         if self.version >= 13 and feature is not None and self.keys is not None:
             key, iv = self.keys[feature]
+            if self.chain == "type":
+                iv = self.type_iv.get(rtype, self.initial_iv[feature])
             ct = AES.new(key, AES.MODE_CBC, iv).encrypt(pad(content, 16))
             self.keys[feature][1] = ct[-16:]  # следующий IV — последний блок
+            self.type_iv[rtype] = ct[-16:]
             body = ct + b"\x00"  # последний байт области не входит в данные
         else:
             body = content + b"\x00"
@@ -176,6 +181,8 @@ def simulate(w, start_ms, duration=120.0):
                         9 if 80 <= t < 86 else 18, percent, t, vibrating=vib, action=12 if mode == 15 else 0))
         if k % 5 == 0:
             w.record(7, center_battery(percent, voltage, int(5000 - used), -current))
+        if k % 5 in (1, 3):  # как в реальных логах: Home перемежается с OSD в той же группе ключа
+            w.record(2, home(lon0, lat0, 150.0))
         if k == 40:
             w.record(9, b"Motors started\x00")
         if k == 620:
@@ -194,14 +201,15 @@ def write_v12(path, start_ms):
         f.write(prefix + d + w.out)
 
 
-def write_v14(path, keys_path, start_ms):
+def write_v14(path, keys_path, start_ms, chain="feature"):
     keys = {
         FEATURE_BASE: [bytes(range(32)), bytes(range(16, 32))],
         FEATURE_CUSTOM: [bytes(range(100, 132)), bytes(range(50, 66))],
         FEATURE_BATTERY: [bytes(range(200, 232)), bytes(range(70, 86))],
     }
     initial = {f: [k, iv] for f, (k, iv) in keys.items()}
-    w = Writer(14, {f: [k, iv] for f, (k, iv) in keys.items()})
+    w = Writer(14, {f: [k, iv] for f, (k, iv) in keys.items()}, chain)
+    w.initial_iv = {f: iv for f, (k, iv) in keys.items()}
     for f in (FEATURE_BASE, FEATURE_CUSTOM, FEATURE_BATTERY):
         blob = bytes([f]) * 48  # зашифрованный ключ; в реальном логе его расшифровывает сервер DJI
         w.record(56, struct.pack("<HH", f, len(blob)) + blob)
@@ -227,7 +235,9 @@ def main():
     start = 1789385525000  # 2026-09-14 11:32:05 UTC
     write_v12(os.path.join(TEST_RES, "dji_v12.txt"), start)
     write_v14(os.path.join(TEST_RES, "dji_v14.txt"), os.path.join(TEST_RES, "dji_v14.keychains.json"), start)
-    for n in ("dji_v12.txt", "dji_v14.txt"):
+    # Тот же полёт, но цепочка IV по типу записи (встречается в реальных логах v14) — ключи те же.
+    write_v14(os.path.join(TEST_RES, "dji_v14_typechain.txt"), os.devnull, start, chain="type")
+    for n in ("dji_v12.txt", "dji_v14.txt", "dji_v14_typechain.txt"):
         print(n, os.path.getsize(os.path.join(TEST_RES, n)))
 
 

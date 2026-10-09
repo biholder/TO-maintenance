@@ -188,3 +188,32 @@ class DjiPartialKeysTest {
         assertTrue(dji.aesNoKey > 0)
     }
 }
+
+/** Цепочка AES-CBC по типу записи (а не по группе ключа, как в эталоне). */
+class DjiIvChainTest {
+    private fun res(name: String) = javaClass.getResourceAsStream("/$name")!!.readBytes()
+    private val keys = String(res("dji_v14.keychains.json"))
+
+    @Test
+    fun detectsFeatureChainOnReferenceLikeLog() {
+        val dji = DjiLog(ByteBuffer.wrap(res("dji_v14.txt")))
+        dji.records(DjiMapper.parseKeychains(keys)) {}
+        assertEquals(DjiLog.IvMode.FEATURE, dji.ivMode)
+    }
+
+    @Test
+    fun typeChainedLogDecodesFully() {
+        // На этом файле эталонный парсер получает верные координаты лишь у ~60% OSD — как на реальном логе Mavic 3E.
+        val dji = DjiLog(ByteBuffer.wrap(res("dji_v14_typechain.txt")))
+        val p = LogReader.read(res("dji_v14_typechain.txt"), "t.txt", djiKeychains = keys)
+        val ref = LogReader.read(res("dji_v14.txt"), "r.txt", djiKeychains = keys)
+        dji.records(DjiMapper.parseKeychains(keys)) {}
+        assertEquals(DjiLog.IvMode.TYPE, dji.ivMode)
+        assertEquals(0, dji.aesFailed)
+        assertEquals(ref.log.track.size, p.log.track.size)
+        assertEquals(1200, p.log.track.size)
+        assertEquals(ref.log.series.getValue(Ch.ALT).max, p.log.series.getValue(Ch.ALT).max)
+        assertEquals(ref.log.series.getValue(Ch.VOLT).min, p.log.series.getValue(Ch.VOLT).min)
+        assertEquals(ref.log.modes.map { it.name }, p.log.modes.map { it.name })
+    }
+}

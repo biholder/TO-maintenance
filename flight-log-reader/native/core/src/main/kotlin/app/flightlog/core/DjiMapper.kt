@@ -111,7 +111,7 @@ object DjiMapper {
                 }
                 DjiLog.OSD -> {
                     osdTotal++
-                    if (!plausibleOsd(d, r.data.size)) return@records
+                    if (!DjiLog.plausibleOsd(r.data)) return@records
                     t = if (firstTs != null) ((lastTs!! - firstTs!!) / 1000f).coerceAtLeast(t) else osdCount / 10f
                     osdCount++
                     val lon = Math.toDegrees(d.getDouble(0))
@@ -205,7 +205,8 @@ object DjiMapper {
         val aesBad = log.version >= 13 && log.aesTotal > 0 && log.aesFailed * 2 > log.aesTotal
         if (aesBad || osdCount == 0 || osdCount < osdTotal / 2) throw LogParseException(
             if (log.version >= 13) "Не удалось расшифровать записи DJI: ключи не подходят к этому логу. " +
-                "Расшифровано ${log.aesTotal - log.aesFailed} из ${log.aesTotal} записей, OSD: $osdCount из $osdTotal. ${log.diagnostics()}"
+                "Расшифровано ${log.aesTotal - log.aesFailed} из ${log.aesTotal} записей, OSD: $osdCount из $osdTotal, " +
+                "цепочка IV: ${log.ivMode ?: "—"}. ${log.diagnostics()}"
             else "В логе DJI нет записей OSD",
         )
         // SmartBattery — только если других источников напряжения нет.
@@ -245,15 +246,6 @@ object DjiMapper {
             events = events.sortedBy { it.time }, modes = modes, params = emptyList(),
             armTime = armT, disarmTime = disarmT, messageCount = records,
         )
-    }
-
-    /** Отсев мусора после неудачной расшифровки: координаты и высота в разумных пределах. */
-    private fun plausibleOsd(d: ByteBuffer, size: Int): Boolean {
-        if (size < 44) return false
-        val lon = Math.toDegrees(d.getDouble(0))
-        val lat = Math.toDegrees(d.getDouble(8))
-        return lat.isFinite() && lon.isFinite() && lat in -90.0..90.0 && lon in -180.0..180.0 &&
-            kotlin.math.abs(d.getShort(16).toInt()) < 100_000 && (d.get(40).toInt() and 0xFF) <= 100
     }
 
     private fun cstr(b: ByteArray): String {

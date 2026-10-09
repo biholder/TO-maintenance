@@ -7,7 +7,7 @@
   "startTime": "2026-09-14T11:32:05Z",
   "totalDistance": 1834.5,
   "counts": {
-   "Home": 1,
+   "Home": 481,
    "Custom": 1200,
    "OSD": 1200,
    "CenterBattery": 240,
@@ -41,7 +41,7 @@
   "totalDistance": 1834.5,
   "counts": {
    "KeyStorage": 3,
-   "Home": 1,
+   "Home": 481,
    "Custom": 1200,
    "OSD": 1200,
    "CenterBattery": 240,
