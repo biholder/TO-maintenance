@@ -78,9 +78,12 @@ class Writer:
             key, iv = self.keys[feature]
             if self.chain == "type":
                 iv = self.type_iv.get(rtype, self.initial_iv[feature])
+            elif self.chain == "global":
+                iv = getattr(self, "global_iv", None) or self.initial_iv[feature]
             ct = AES.new(key, AES.MODE_CBC, iv).encrypt(pad(content, 16))
             self.keys[feature][1] = ct[-16:]  # следующий IV — последний блок
             self.type_iv[rtype] = ct[-16:]
+            self.global_iv = ct[-16:]
             body = ct + b"\x00"  # последний байт области не входит в данные
         else:
             body = content + b"\x00"
@@ -237,7 +240,8 @@ def main():
     write_v14(os.path.join(TEST_RES, "dji_v14.txt"), os.path.join(TEST_RES, "dji_v14.keychains.json"), start)
     # Тот же полёт, но цепочка IV по типу записи (встречается в реальных логах v14) — ключи те же.
     write_v14(os.path.join(TEST_RES, "dji_v14_typechain.txt"), os.devnull, start, chain="type")
-    for n in ("dji_v12.txt", "dji_v14.txt", "dji_v14_typechain.txt"):
+    write_v14(os.path.join(TEST_RES, "dji_v14_globalchain.txt"), os.devnull, start, chain="global")
+    for n in ("dji_v12.txt", "dji_v14.txt", "dji_v14_typechain.txt", "dji_v14_globalchain.txt"):
         print(n, os.path.getsize(os.path.join(TEST_RES, n)))
 
 

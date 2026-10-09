@@ -202,6 +202,17 @@ class DjiIvChainTest {
     }
 
     @Test
+    fun globalChainedLogDecodesFully() {
+        val dji = DjiLog(ByteBuffer.wrap(res("dji_v14_globalchain.txt")))
+        dji.records(DjiMapper.parseKeychains(keys)) {}
+        assertEquals(DjiLog.IvMode.GLOBAL, dji.ivMode)
+        assertEquals(0, dji.aesFailed)
+        val p = LogReader.read(res("dji_v14_globalchain.txt"), "g.txt", djiKeychains = keys)
+        assertEquals(1200, p.log.track.size)
+        assertTrue(dji.ivReport.contains("GLOBAL 100%"), dji.ivReport)
+    }
+
+    @Test
     fun typeChainedLogDecodesFully() {
         // На этом файле эталонный парсер получает верные координаты лишь у ~60% OSD — как на реальном логе Mavic 3E.
         val dji = DjiLog(ByteBuffer.wrap(res("dji_v14_typechain.txt")))

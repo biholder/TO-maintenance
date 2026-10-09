@@ -128,21 +128,20 @@ class DjiLog(buffer: ByteBuffer) {
                         val ct = x.copyOf(len - 2)
                         val st = state ?: AesState(pickChain(all, segment, feature, ct)).also { state = it }
                         val key = st.keys[feature]
-                        if (key == null) { aesNoKey++; ByteArray(0) }
-                        else {
+                        val plain = if (key == null) { aesNoKey++; ByteArray(0) } else {
                             aesTotal++
-                            var plain = decryptAes(ct, st.iv(mode, feature, type), key.second)
-                            // OSD проверяем по смыслу: при неудаче пробуем IV по другим правилам цепочки.
-                            if (type == OSD && !plausibleOsd(plain)) {
-                                for (m in IvMode.entries) if (m != mode) {
-                                    val p = decryptAes(ct, st.iv(m, feature, type), key.second)
-                                    if (plausibleOsd(p)) { plain = p; break }
-                                }
+                            var p = decryptAes(ct, st.iv(mode, feature, type), key.second)
+                            // OSD проверяем по смыслу: при неудаче — другие правила, затем поиск по недавним записям.
+                            if (type == OSD && !plausibleOsd(p)) {
+                                p = st.candidates(feature, type).asSequence()
+                                    .map { decryptAes(ct, it, key.second) }
+                                    .firstOrNull { plausibleOsd(it) } ?: p
                             }
-                            st.advance(feature, type, ct)
-                            if (plain.isEmpty()) aesFailed++
-                            plain
+                            if (p.isEmpty()) aesFailed++
+                            p
                         }
+                        st.advance(feature, type, ct)
+                        plain
                     }
                 }
             }
@@ -154,39 +153,60 @@ class DjiLog(buffer: ByteBuffer) {
 
     /**
      * Как DJI связывает записи в цепочку AES-CBC (IV записи = последний блок предыдущей):
-     * по группе ключа (feature point, как в эталоне), по типу записи или без цепочки.
-     * Неверный IV портит только первые 16 байт записи, поэтому ошибка видна по
-     * бессмысленным координатам OSD и по не расшифровавшимся одноблочным записям.
+     * по группе ключа (feature point, как в эталоне), по типу записи, сквозная цепочка
+     * через все зашифрованные записи или без цепочки. Неверный IV портит только первые
+     * 16 байт записи — это видно по координатам OSD и по одноблочным записям.
      */
-    enum class IvMode { FEATURE, TYPE, FIXED }
+    enum class IvMode { FEATURE, TYPE, GLOBAL, FIXED }
 
     /** Определённое для этого лога правило цепочки (после первого обхода с ключами). */
     var ivMode: IvMode? = null
         private set
     private var ivModeFor: Any? = null
 
+    /** Диагностика подбора цепочки (без данных полёта): доли осмысленных OSD по правилам. */
+    var ivReport: String = ""
+        private set
+
     private class AesState(val keys: Map<Int, Pair<ByteArray, ByteArray>>) {
         private val byFeature = HashMap<Int, ByteArray>()
         private val byType = HashMap<Int, ByteArray>()
+        /** Последние блоки недавних зашифрованных записей (новые в конце) и их типы. */
+        val history = ArrayDeque<Pair<Int, ByteArray>>()
+
         fun iv(mode: IvMode, feature: Int, type: Int): ByteArray {
-            val initial = keys.getValue(feature).first
+            val initial = keys[feature]?.first ?: ByteArray(16)
             return when (mode) {
                 IvMode.FEATURE -> byFeature[feature] ?: initial
                 IvMode.TYPE -> byType[type] ?: initial
+                IvMode.GLOBAL -> history.lastOrNull()?.second ?: initial
                 IvMode.FIXED -> initial
             }
         }
+
+        /** Все разумные IV: по правилам, затем блоки недавних записей (от ближайших). */
+        fun candidates(feature: Int, type: Int): List<ByteArray> =
+            IvMode.entries.map { iv(it, feature, type) } + history.reversed().map { it.second }
+
         fun advance(feature: Int, type: Int, ct: ByteArray) {
             if (ct.size < 16) return
             val last = ct.copyOfRange(ct.size - 16, ct.size)
             byFeature[feature] = last
             byType[type] = last
+            history.addLast(type to last)
+            if (history.size > HISTORY) history.removeFirst()
         }
+
+        companion object { const val HISTORY = 16 }
     }
 
     /** Пробный проход: какое правило цепочки даёт осмысленные данные. */
-    private fun detectIvMode(all: List<Map<Int, Pair<ByteArray, ByteArray>>>, sample: Int = 4000): IvMode {
+    private fun detectIvMode(all: List<Map<Int, Pair<ByteArray, ByteArray>>>, sample: Int = 6000): IvMode {
         val score = IntArray(IvMode.entries.size)
+        var osd = 0
+        var found = 0
+        val byDistance = IntArray(AesState.HISTORY + 1)
+        val bySourceType = HashMap<Int, Int>()
         var segment = 0
         var state: AesState? = null
         var n = 0
@@ -196,17 +216,32 @@ class DjiLog(buffer: ByteBuffer) {
             if (feature == PLAINTEXT || len < 18) return@frames true
             val ct = decodeXor(dataStart, len, type).copyOf(len - 2)
             val st = state ?: AesState(pickChain(all, segment, feature, ct)).also { state = it }
-            val key = st.keys[feature] ?: return@frames true
-            // Различают правила только записи, чувствительные к IV: OSD (по смыслу) и одноблочные (по дополнению).
-            if (type == OSD || ct.size == 16) {
+            val key = st.keys[feature]
+            if (key != null && (type == OSD || ct.size == 16)) {
+                // Различают правила только записи, чувствительные к IV: OSD (по смыслу) и одноблочные (по дополнению).
                 for (m in IvMode.entries) {
                     val p = decryptAes(ct, st.iv(m, feature, type), key.second)
                     if (if (type == OSD) plausibleOsd(p) else p.isNotEmpty()) score[m.ordinal]++
+                }
+                if (type == OSD) {
+                    osd++
+                    // Какой из недавних блоков даёт осмысленную запись — подсказка об устройстве цепочки.
+                    val h = st.history.reversed()
+                    val d = h.indexOfFirst { plausibleOsd(decryptAes(ct, it.second, key.second)) }
+                    if (d >= 0) { found++; byDistance[d + 1]++; bySourceType.merge(h[d].first, 1, Int::plus) }
                 }
             }
             st.advance(feature, type, ct)
             ++n < sample
         }
+        fun pct(x: Int) = if (osd == 0) "—" else "${x * 100 / osd}%"
+        ivReport = "OSD в пробе: $osd; осмысленно по правилам: " +
+            IvMode.entries.joinToString(", ") { "$it ${pct(score[it.ordinal])}" } +
+            "; поиск по недавним записям: ${pct(found)}" +
+            (if (found > 0) " (расстояние: " + byDistance.withIndex().filter { it.value > 0 }.sortedByDescending { it.value }
+                .take(3).joinToString { "${it.index}×${it.value}" } +
+                "; тип-источник: " + bySourceType.entries.sortedByDescending { it.value }.take(3)
+                .joinToString { "${it.key}×${it.value}" } + ")" else "")
         // При равенстве — правило эталона (FEATURE).
         return IvMode.entries.maxWithOrNull(compareBy<IvMode> { score[it.ordinal] }.thenBy { -it.ordinal }) ?: IvMode.FEATURE
     }
@@ -385,10 +420,13 @@ class DjiLog(buffer: ByteBuffer) {
         internal fun plausibleOsd(data: ByteArray): Boolean {
             if (data.size < 44) return false
             val d = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
-            val lon = Math.toDegrees(d.getDouble(0))
-            val lat = Math.toDegrees(d.getDouble(8))
-            return lat.isFinite() && lon.isFinite() && lat in -90.0..90.0 && lon in -180.0..180.0 &&
-                kotlin.math.abs(d.getShort(16).toInt()) < 100_000 && (data[40].toInt() and 0xFF) <= 100
+            val lon = d.getDouble(0)
+            val lat = d.getDouble(8)
+            if (lat == 0.0 && lon == 0.0) return true // нет GPS
+            // Радианы реальной точки: |lat| ≤ π/2, |lon| ≤ π и не «случайно крошечные» —
+            // у мусора после неверного IV порядок величины произвольный.
+            fun ok(v: Double, max: Double) = v.isFinite() && kotlin.math.abs(v) in 1e-5..max
+            return ok(lat, Math.PI / 2) && ok(lon, Math.PI)
         }
 
         /** Похоже ли начало файла на DJI FlightRecord. */

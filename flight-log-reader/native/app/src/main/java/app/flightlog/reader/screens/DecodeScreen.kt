@@ -96,7 +96,10 @@ fun DecodeScreen(vm: AppViewModel) {
             d.error?.let { err ->
                 Column(Modifier.padding(top = 24.dp).fillMaxWidth().background(tk.wr1).padding(14.dp)) {
                     Kicker("Ошибка разбора", color = tk.cr)
-                    T(err, Type.body(15.sp), modifier = Modifier.padding(top = 4.dp))
+                    // Текст можно выделить и скопировать — удобно прислать разработчику.
+                    androidx.compose.foundation.text.selection.SelectionContainer {
+                        T(err, Type.body(15.sp), modifier = Modifier.padding(top = 4.dp))
+                    }
                 }
             }
             if (d.done) {

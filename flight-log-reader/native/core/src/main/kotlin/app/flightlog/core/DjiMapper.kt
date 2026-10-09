@@ -206,7 +206,7 @@ object DjiMapper {
         if (aesBad || osdCount == 0 || osdCount < osdTotal / 2) throw LogParseException(
             if (log.version >= 13) "Не удалось расшифровать записи DJI: ключи не подходят к этому логу. " +
                 "Расшифровано ${log.aesTotal - log.aesFailed} из ${log.aesTotal} записей, OSD: $osdCount из $osdTotal, " +
-                "цепочка IV: ${log.ivMode ?: "—"}. ${log.diagnostics()}"
+                "цепочка IV: ${log.ivMode ?: "—"}. ${log.ivReport}. ${log.diagnostics()}"
             else "В логе DJI нет записей OSD",
         )
         // SmartBattery — только если других источников напряжения нет.
