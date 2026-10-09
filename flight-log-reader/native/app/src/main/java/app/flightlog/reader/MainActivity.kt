@@ -20,7 +20,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.net.Uri
 import androidx.core.content.FileProvider
+import androidx.core.content.IntentCompat
 import androidx.core.view.WindowCompat
 import app.flightlog.reader.screens.CompareScreen
 import app.flightlog.reader.screens.DecodeScreen
@@ -50,6 +52,28 @@ class MainActivity : ComponentActivity() {
             }
             AppTheme(dark) { Root(vm, ::share) }
         }
+        // Файл, переданный через «Поделиться» / «Открыть с помощью» (не повторяем при повороте экрана).
+        if (savedInstanceState == null) handleIncoming(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIncoming(intent)
+    }
+
+    private fun handleIncoming(intent: Intent?) {
+        val uris: List<Uri> = when (intent?.action) {
+            Intent.ACTION_VIEW -> listOfNotNull(intent.data)
+            Intent.ACTION_SEND -> listOfNotNull(
+                IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java) ?: intent.data,
+            )
+            Intent.ACTION_SEND_MULTIPLE ->
+                IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
+            else -> emptyList()
+        }
+        if (uris.isNotEmpty()) vm.importShared(uris)
+        // Чтобы повторный показ Activity не импортировал файл ещё раз.
+        intent?.action = Intent.ACTION_MAIN
     }
 
     private fun share(file: File, mime: String) {

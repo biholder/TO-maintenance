@@ -135,6 +135,47 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun importUri(uri: Uri) = startImport("Память телефона") { repo.stage(uri) }
 
+    /**
+     * Файлы из «Поделиться» / «Открыть с помощью». Один файл — обычный экран
+     * расшифровки; несколько — импорт в фоне с итогом во всплывающем сообщении.
+     */
+    fun importShared(uris: List<Uri>) {
+        if (uris.size == 1) {
+            // Импорт поверх открытых экранов: возвращаемся к библиотеке, затем расшифровка.
+            while (stack.size > 1) back()
+            startImport("Получено через «Поделиться»") { repo.stage(uris[0]) }
+            return
+        }
+        sheet = false
+        showToast("Импорт файлов: ${uris.size}…")
+        viewModelScope.launch {
+            var ok = 0
+            var needKeys = 0
+            val failed = ArrayList<String>()
+            for (u in uris) {
+                val staged = runCatching { withContext(Dispatchers.IO) { repo.stage(u) } }.getOrNull()
+                if (staged == null) { failed += u.lastPathSegment ?: "?"; continue }
+                try {
+                    withContext(Dispatchers.Default) { repo.import(staged.first, staged.second, null) }
+                    ok++
+                } catch (e: app.flightlog.core.DjiMapper.KeychainsRequired) {
+                    staged.first.delete()
+                    needKeys++
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    failed += staged.second
+                }
+            }
+            reload()
+            showToast(buildString {
+                append("Импортировано: $ok из ${uris.size}")
+                if (needKeys > 0) append(". Зашифрованные логи DJI ($needKeys) откройте по одному — нужен ключ DJI")
+                if (failed.isNotEmpty()) append(". Не удалось: ${failed.take(3).joinToString()}")
+            })
+        }
+    }
+
     fun importDemo() {
         sheet = false
         viewModelScope.launch {
