@@ -73,7 +73,7 @@ class Writer:
     def record(self, rtype, content):
         self.seed = (self.seed * 73 + 41) & 0xFF
         seed = self.seed
-        feature = feature_v14(rtype) if self.version >= 13 else None
+        feature = (getattr(self, "extra_features", {}).get(rtype) or feature_v14(rtype)) if self.version >= 13 else None
         if self.version >= 13 and feature is not None and self.keys is not None:
             key, iv = self.keys[feature]
             if self.chain == "type":
@@ -149,7 +149,7 @@ def center_battery(percent, voltage, remaining, current):
     return bytes(b)
 
 
-def simulate(w, start_ms, duration=120.0):
+def simulate(w, start_ms, duration=120.0, unknown_types=False):
     lat0, lon0 = 55.751244, 37.618423
     m_lat = 111320.0
     m_lon = 111320.0 * math.cos(math.radians(lat0))
@@ -186,6 +186,12 @@ def simulate(w, start_ms, duration=120.0):
             w.record(7, center_battery(percent, voltage, int(5000 - used), -current))
         if k % 5 in (1, 3):  # как в реальных логах: Home перемежается с OSD в той же группе ключа
             w.record(2, home(lon0, lat0, 150.0))
+        if unknown_types:
+            # Как в логах Mavic 3 Enterprise v14: типы 57 (2 блока) и 254 (1 блок) вне таблицы эталона,
+            # зашифрованы ключом Base и стоят в одной цепочке с OSD.
+            w.record(57, struct.pack("<5f", t, h, vx, vy, vz))
+            if k % 2 == 0:
+                w.record(254, struct.pack("<II", k, 7))
         if k == 40:
             w.record(9, b"Motors started\x00")
         if k == 620:
@@ -204,7 +210,7 @@ def write_v12(path, start_ms):
         f.write(prefix + d + w.out)
 
 
-def write_v14(path, keys_path, start_ms, chain="feature"):
+def write_v14(path, keys_path, start_ms, chain="feature", unknown_types=False):
     keys = {
         FEATURE_BASE: [bytes(range(32)), bytes(range(16, 32))],
         FEATURE_CUSTOM: [bytes(range(100, 132)), bytes(range(50, 66))],
@@ -213,10 +219,12 @@ def write_v14(path, keys_path, start_ms, chain="feature"):
     initial = {f: [k, iv] for f, (k, iv) in keys.items()}
     w = Writer(14, {f: [k, iv] for f, (k, iv) in keys.items()}, chain)
     w.initial_iv = {f: iv for f, (k, iv) in keys.items()}
+    if unknown_types:
+        w.extra_features = {57: FEATURE_BASE, 254: FEATURE_BASE}
     for f in (FEATURE_BASE, FEATURE_CUSTOM, FEATURE_BATTERY):
         blob = bytes([f]) * 48  # зашифрованный ключ; в реальном логе его расшифровывает сервер DJI
         w.record(56, struct.pack("<HH", f, len(blob)) + blob)
-    simulate(w, start_ms)
+    simulate(w, start_ms, unknown_types=unknown_types)
     info = details_bytes(start_ms, 55.751244, 37.618423, 77, "Mavic 3", "SN14ABC")
     info_struct = struct.pack("<BH", 1, len(info)) + info + struct.pack("<H", 4) + b"SIGN"
     seed = 0x5A
@@ -241,7 +249,8 @@ def main():
     # Тот же полёт, но цепочка IV по типу записи (встречается в реальных логах v14) — ключи те же.
     write_v14(os.path.join(TEST_RES, "dji_v14_typechain.txt"), os.devnull, start, chain="type")
     write_v14(os.path.join(TEST_RES, "dji_v14_globalchain.txt"), os.devnull, start, chain="global")
-    for n in ("dji_v12.txt", "dji_v14.txt", "dji_v14_typechain.txt", "dji_v14_globalchain.txt"):
+    write_v14(os.path.join(TEST_RES, "dji_v14_unknown.txt"), os.devnull, start, unknown_types=True)
+    for n in ("dji_v12.txt", "dji_v14.txt", "dji_v14_typechain.txt", "dji_v14_globalchain.txt", "dji_v14_unknown.txt"):
         print(n, os.path.getsize(os.path.join(TEST_RES, n)))
 
 

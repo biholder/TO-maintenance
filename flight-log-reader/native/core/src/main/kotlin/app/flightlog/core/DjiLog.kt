@@ -105,6 +105,11 @@ class DjiLog(buffer: ByteBuffer) {
         onRecord: (Record) -> Unit,
     ) {
         val all = keychains ?: emptyList()
+        if (all.isNotEmpty() && version >= 13 && learnedFor !== keychains) {
+            learned = learnFeatures(all)
+            learnedFor = keychains
+            ivModeFor = null
+        }
         val mode = when {
             all.isEmpty() || version < 13 -> IvMode.FEATURE
             ivModeFor === keychains && ivMode != null -> ivMode!!
@@ -121,7 +126,7 @@ class DjiLog(buffer: ByteBuffer) {
                 version <= 6 -> bytes(dataStart, len)
                 version <= 12 -> decodeXor(dataStart, len, type).let { it.copyOf(maxOf(0, it.size - 1)) }
                 else -> {
-                    val feature = featurePoint(type, version)
+                    val feature = fp(type)
                     val x = decodeXor(dataStart, len, type)
                     if (feature == PLAINTEXT || all.isEmpty() || len < 18) x.copyOf(maxOf(0, x.size - 1))
                     else {
@@ -200,6 +205,86 @@ class DjiLog(buffer: ByteBuffer) {
         companion object { const val HISTORY = 16 }
     }
 
+    /**
+     * Типы записей, которых нет в таблице эталона, но которые зашифрованы AES
+     * (длина данных кратна 16) — например 57 и 254 в логах Mavic 3 Enterprise v14.
+     * Их группа ключа определяется пробной расшифровкой, иначе такие записи
+     * выпадают из цепочки IV и портят соседние.
+     */
+    var learnedFeatures: Map<Int, Int> = emptyMap()
+        private set
+    private var learned: Map<Int, Int> = emptyMap()
+    private var learnedFor: Any? = null
+
+    private fun fp(type: Int): Int = learned[type] ?: featurePoint(type, version)
+
+    private fun learnFeatures(all: List<Map<Int, Pair<ByteArray, ByteArray>>>): Map<Int, Int> {
+        val keys = all.firstOrNull { it.isNotEmpty() } ?: return emptyMap()
+        // Кандидаты: «открытые» по таблице типы, у которых все записи выровнены под AES.
+        val aligned = HashMap<Int, IntArray>() // тип → [всего, выровнено]
+        frames { type, _, len ->
+            if (type != KEY_STORAGE && type != KEY_STORAGE_RECOVER && featurePoint(type, version) == PLAINTEXT) {
+                val a = aligned.getOrPut(type) { IntArray(2) }
+                a[0]++
+                if (len >= 18 && (len - 2) % 16 == 0) a[1]++
+            }
+            true
+        }
+        val candidates = aligned.filter { (_, a) -> a[0] >= 3 && a[1] == a[0] }.keys
+        if (candidates.isEmpty()) return emptyMap()
+        val result = HashMap<Int, Int>()
+        val zeroIv = ByteArray(16)
+
+        // 1) Многоблочные записи: дополнение последнего блока не зависит от IV — ключ виден сразу.
+        val multi = HashMap<Int, HashMap<Int, Int>>()
+        val multiN = HashMap<Int, Int>()
+        frames { type, dataStart, len ->
+            if (type in candidates && len - 2 >= 32 && (multiN[type] ?: 0) < 60) {
+                multiN.merge(type, 1, Int::plus)
+                val ct = decodeXor(dataStart, len, type).copyOf(len - 2)
+                for ((f, k) in keys) if (decryptAes(ct, zeroIv, k.second).isNotEmpty()) {
+                    multi.getOrPut(type) { HashMap() }.merge(f, 1, Int::plus)
+                }
+            }
+            true
+        }
+        for ((type, n) in multiN) {
+            val best = multi[type]?.maxByOrNull { it.value } ?: continue
+            if (best.value >= n * 0.8) result[type] = best.key
+        }
+
+        // 2) Одноблочные: пробуем IV цепочки каждой группы (по уже известным типам).
+        val single = candidates - result.keys
+        if (single.isNotEmpty()) {
+            val chainIv = HashMap<Int, ByteArray>()
+            val votes = HashMap<Int, HashMap<Int, Int>>()
+            val tried = HashMap<Int, Int>()
+            frames { type, dataStart, len ->
+                if (type == KEY_STORAGE_RECOVER) { chainIv.clear(); return@frames true }
+                if (len < 18 || (len - 2) % 16 != 0) return@frames true
+                val f = result[type] ?: featurePoint(type, version)
+                val ct = decodeXor(dataStart, len, type).copyOf(len - 2)
+                if (type in single && (tried[type] ?: 0) < 300) {
+                    tried.merge(type, 1, Int::plus)
+                    for ((kf, k) in keys) {
+                        if (decryptAes(ct, chainIv[kf] ?: k.first, k.second).isNotEmpty()) {
+                            votes.getOrPut(type) { HashMap() }.merge(kf, 1, Int::plus)
+                        }
+                    }
+                } else if (f != PLAINTEXT) {
+                    chainIv[f] = ct.copyOfRange(ct.size - 16, ct.size)
+                }
+                true
+            }
+            for ((type, n) in tried) {
+                val best = votes[type]?.maxByOrNull { it.value } ?: continue
+                if (best.value >= n * 0.3) result[type] = best.key
+            }
+        }
+        learnedFeatures = result
+        return result
+    }
+
     /** Пробный проход: какое правило цепочки даёт осмысленные данные. */
     private fun detectIvMode(all: List<Map<Int, Pair<ByteArray, ByteArray>>>, sample: Int = 6000): IvMode {
         val score = IntArray(IvMode.entries.size)
@@ -212,7 +297,7 @@ class DjiLog(buffer: ByteBuffer) {
         var n = 0
         frames { type, dataStart, len ->
             if (type == KEY_STORAGE_RECOVER) { segment++; state = null; return@frames true }
-            val feature = featurePoint(type, version)
+            val feature = fp(type)
             if (feature == PLAINTEXT || len < 18) return@frames true
             val ct = decodeXor(dataStart, len, type).copyOf(len - 2)
             val st = state ?: AesState(pickChain(all, segment, feature, ct)).also { state = it }

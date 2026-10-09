@@ -43,7 +43,7 @@ import app.flightlog.reader.ui.tk
 import kotlin.math.roundToInt
 
 @Composable
-fun DecodeScreen(vm: AppViewModel) {
+fun DecodeScreen(vm: AppViewModel, share: (java.io.File, String) -> Unit) {
     val d = vm.decode ?: return
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
@@ -99,6 +99,13 @@ fun DecodeScreen(vm: AppViewModel) {
                     // Текст можно выделить и скопировать — удобно прислать разработчику.
                     androidx.compose.foundation.text.selection.SelectionContainer {
                         T(err, Type.body(15.sp), modifier = Modifier.padding(top = 4.dp))
+                    }
+                    if (d.djiKeysForReport != null) {
+                        T("Ключи DJI получены, но лог не открылся. Отправьте файл ключей разработчику вместе с логом — " +
+                            "ключи подходят только к этому файлу и не содержат данных полёта.",
+                            Type.body(13.sp), tk.mu, Modifier.padding(top = 10.dp))
+                        SecondaryButton("Отправить ключи DJI", { vm.djiKeysReportFile()?.let { share(it, "application/json") } },
+                            Modifier.padding(top = 8.dp).fillMaxWidth(), height = 44.dp)
                     }
                 }
             }

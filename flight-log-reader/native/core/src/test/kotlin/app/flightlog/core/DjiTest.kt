@@ -202,6 +202,21 @@ class DjiIvChainTest {
     }
 
     @Test
+    fun unknownEncryptedTypesAreLearned() {
+        // Типы 57 и 254 зашифрованы ключом Base, но их нет в таблице эталона (как в логах Mavic 3E v14).
+        val dji = DjiLog(ByteBuffer.wrap(res("dji_v14_unknown.txt")))
+        dji.records(DjiMapper.parseKeychains(keys)) {}
+        assertEquals(mapOf(57 to 1, 254 to 1), dji.learnedFeatures)
+        assertEquals(DjiLog.IvMode.FEATURE, dji.ivMode)
+        assertEquals(0, dji.aesFailed)
+        val p = LogReader.read(res("dji_v14_unknown.txt"), "u.txt", djiKeychains = keys)
+        val ref = LogReader.read(res("dji_v14.txt"), "r.txt", djiKeychains = keys)
+        assertEquals(1200, p.log.track.size)
+        assertEquals(ref.log.series.getValue(Ch.ALT).max, p.log.series.getValue(Ch.ALT).max)
+        assertEquals(ref.log.modes.map { it.name }, p.log.modes.map { it.name })
+    }
+
+    @Test
     fun globalChainedLogDecodesFully() {
         val dji = DjiLog(ByteBuffer.wrap(res("dji_v14_globalchain.txt")))
         dji.records(DjiMapper.parseKeychains(keys)) {}

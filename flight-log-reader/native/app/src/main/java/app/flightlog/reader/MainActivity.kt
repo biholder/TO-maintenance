@@ -94,7 +94,7 @@ private fun Root(vm: AppViewModel, share: (File, String) -> Unit) {
         Box(Modifier.fillMaxSize().safeDrawingPadding()) {
             when (vm.screen) {
                 Screen.LIBRARY -> LibraryScreen(vm)
-                Screen.DECODE -> DecodeScreen(vm)
+                Screen.DECODE -> DecodeScreen(vm, share)
                 Screen.FLIGHT -> FlightScreen(vm)
                 Screen.COMPARE -> CompareScreen(vm)
                 Screen.EXPORT -> ExportScreen(vm, share)

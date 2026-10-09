@@ -47,14 +47,17 @@ class DecodeState(
     val djiBusy: Boolean = false,
     /** Текущая попытка получения ключей DJI. */
     val djiStatus: String? = null,
+    /** Полученные ключи DJI, если с ними лог не открылся, — чтобы отправить разработчику. */
+    val djiKeysForReport: String? = null,
 ) {
     fun copy(
         current: Int = this.current, results: Map<Int, String> = this.results, progress: Float = this.progress,
         mbPerSec: Float = this.mbPerSec, done: Boolean = this.done, error: String? = this.error,
         entryId: String? = this.entryId, formatTitle: String = this.formatTitle, stages: List<String> = this.stages,
         djiKeyVersion: Int? = this.djiKeyVersion, djiBusy: Boolean = this.djiBusy, djiStatus: String? = this.djiStatus,
+        djiKeysForReport: String? = this.djiKeysForReport,
     ) = DecodeState(fileName, sizeBytes, source, stages, current, results, progress, mbPerSec, done, error, entryId, formatTitle,
-        djiKeyVersion, djiBusy, djiStatus)
+        djiKeyVersion, djiBusy, djiStatus, djiKeysForReport)
 }
 
 /** Понятный текст ошибки; нехватка памяти не роняет приложение, а показывается пользователю. */
@@ -286,9 +289,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 pending = file to name
                 decode = decode?.copy(djiKeyVersion = e.version)
             } catch (e: Throwable) {
-                decode = decode?.copy(error = errorText(e))
+                decode = decode?.copy(error = errorText(e), djiKeysForReport = djiKeys)
             }
         }
+    }
+
+    /** Файл с ключами DJI для отчёта разработчику (ключи подходят только к этому логу, данных полёта нет). */
+    fun djiKeysReportFile(): File? {
+        val d = decode ?: return null
+        val keys = d.djiKeysForReport ?: return null
+        val f = File(app.flightlog.reader.export.Exporter.dir(getApplication()), d.fileName.substringBeforeLast('.') + ".dji-keys.json")
+        f.writeText(keys)
+        return f
     }
 
     /** «ОТКРЫТЬ ПОЛЁТ» после расшифровки: заменяет экран расшифровки полётом. */
