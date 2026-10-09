@@ -129,7 +129,7 @@ private fun Player(vm: AppViewModel, p: LogReader.Parsed) {
             val mode = log.modeAt(t)
             val armed = log.isArmedAt(t) || log.armTime == null
             val modeText = if (armed) mode else "DISARMED"
-            val warnMode = modeText.contains("RTL")
+            val warnMode = modeText.contains("RTL") || modeText.contains("Go Home")
             Box(Modifier.hairline(if (warnMode) tk.wr else tk.dv).padding(horizontal = 8.dp, vertical = 4.dp)) {
                 T(modeText, Type.cond(14.sp, 1.sp), if (warnMode) tk.wr else tk.tx)
             }

@@ -110,26 +110,39 @@ class LogRepository(private val context: Context) {
     }
 
     /** Разбирает подготовленный файл и добавляет в библиотеку. */
-    fun import(staged: File, name: String, listener: LogReader.Listener?): Pair<LogEntry, LogReader.Parsed> {
-        try {
-            val parsed = LogReader.read(staged, name, listener)
-            val entry = LogEntry.of(UUID.randomUUID().toString(), staged.length(), System.currentTimeMillis(), parsed.log, parsed.analysis)
-            // Перенос, а не копия: большие логи не должны временно занимать место дважды.
-            val dst = fileOf(entry)
-            if (!staged.renameTo(dst)) staged.copyTo(dst, overwrite = true)
-            synchronized(this) {
-                save(list() + entry)
-                cache[entry.id] = parsed
-            }
-            return entry to parsed
-        } finally {
+    /** Ключи AES для лога DJI v13+, сохранённые при импорте, — чтобы открывать без сети. */
+    private fun keysOf(e: LogEntry) = File(dir, "${e.id}.dji-keys.json")
+
+    /**
+     * Разбирает подготовленный файл и добавляет в библиотеку. Если логу DJI нужны
+     * ключи ([app.flightlog.core.DjiMapper.KeychainsRequired]), файл не удаляется —
+     * импорт повторяется после их получения.
+     */
+    fun import(staged: File, name: String, listener: LogReader.Listener?, djiKeychains: String? = null): Pair<LogEntry, LogReader.Parsed> {
+        val parsed = try {
+            LogReader.read(staged, name, listener, djiKeychains)
+        } catch (e: app.flightlog.core.DjiMapper.KeychainsRequired) {
+            throw e
+        } catch (e: Throwable) {
             staged.delete()
+            throw e
         }
+        val entry = LogEntry.of(UUID.randomUUID().toString(), staged.length(), System.currentTimeMillis(), parsed.log, parsed.analysis)
+        // Перенос, а не копия: большие логи не должны временно занимать место дважды.
+        val dst = fileOf(entry)
+        if (!staged.renameTo(dst)) { staged.copyTo(dst, overwrite = true); staged.delete() }
+        djiKeychains?.let { keysOf(entry).writeText(it) }
+        synchronized(this) {
+            save(list() + entry)
+            cache[entry.id] = parsed
+        }
+        return entry to parsed
     }
 
     fun open(e: LogEntry): LogReader.Parsed {
         synchronized(this) { cache[e.id]?.let { return it } }
-        val p = LogReader.read(fileOf(e), e.fileName)
+        val keys = keysOf(e).takeIf { it.exists() }?.readText()
+        val p = LogReader.read(fileOf(e), e.fileName, djiKeychains = keys)
         synchronized(this) { cache[e.id] = p }
         return p
     }
@@ -139,6 +152,7 @@ class LogRepository(private val context: Context) {
     @Synchronized
     fun delete(e: LogEntry) {
         fileOf(e).delete()
+        keysOf(e).delete()
         cache.remove(e.id)
         save(list().filter { it.id != e.id })
     }

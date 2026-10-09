@@ -30,6 +30,13 @@ object LogReader {
             "Журнал событий: режимы и сообщения",
             "Диагностика полёта",
         )
+        LogFormat.DJI -> listOf(
+            "Чтение файла",
+            "Разбор записей FlightRecord, снятие шифрования",
+            "Сборка каналов: OSD, батарея, точка дома",
+            "Журнал событий: режимы, подсказки и предупреждения DJI",
+            "Диагностика полёта",
+        )
         LogFormat.TLOG -> listOf(
             "Чтение файла",
             "Разбор пакетов MAVLink v1/v2, проверка CRC",
@@ -43,6 +50,7 @@ object LogReader {
         val ext = name.substringAfterLast('.', "").lowercase()
         if (head.isDataFlash()) return LogFormat.DATAFLASH
         if (TextLogParser.looksLikeText(head)) return LogFormat.DATAFLASH_TEXT
+        if (ext == "txt" && DjiLog.looksLikeDji(head)) return LogFormat.DJI
         if (ext == "tlog") return LogFormat.TLOG
         if (ext == "csv" || ext == "tsv") return LogFormat.CSV
         if (ext == "bin") return LogFormat.DATAFLASH
@@ -67,7 +75,7 @@ object LogReader {
      * Разбор файла с диска. Бинарные форматы отображаются в память (mmap) —
      * файл не копируется в кучу, поэтому логи в сотни мегабайт не переполняют память.
      */
-    fun read(file: File, displayName: String = file.name, listener: Listener? = null): Parsed {
+    fun read(file: File, displayName: String = file.name, listener: Listener? = null, djiKeychains: String? = null): Parsed {
         listener?.onStage(0, null)
         val format = detect(displayName, head(file)) ?: throw unknown()
         return when (format) {
@@ -79,24 +87,24 @@ object LogReader {
             }
             else -> RandomAccessFile(file, "r").use { raf ->
                 val buf = raf.channel.map(FileChannel.MapMode.READ_ONLY, 0, raf.length())
-                parse(format, displayName, file.length(), listener, buffer = buf)
+                parse(format, displayName, file.length(), listener, buffer = buf, djiKeychains = djiKeychains)
             }
         }
     }
 
     /** Разбор из памяти — для тестов и небольших файлов. */
-    fun read(bytes: ByteArray, name: String, listener: Listener? = null): Parsed {
+    fun read(bytes: ByteArray, name: String, listener: Listener? = null, djiKeychains: String? = null): Parsed {
         val format = detect(name, bytes.copyOf(minOf(64, bytes.size))) ?: throw unknown()
         val size = bytes.size.toLong()
         return when (format) {
             LogFormat.DATAFLASH_TEXT -> parse(format, name, size, listener, text = { p -> TextLogParser().parse(bytes.inputStream(), size, p) })
             LogFormat.CSV -> parse(format, name, size, listener, direct = { p -> CsvLogParser().parse(bytes.inputStream(), name, size, p) })
-            else -> parse(format, name, size, listener, buffer = ByteBuffer.wrap(bytes))
+            else -> parse(format, name, size, listener, buffer = ByteBuffer.wrap(bytes), djiKeychains = djiKeychains)
         }
     }
 
     private fun unknown() = LogParseException(
-        "Неизвестный формат файла. Поддерживаются ArduPilot .bin, текстовый .log (Mission Planner), MAVLink .tlog и CSV",
+        "Неизвестный формат файла. Поддерживаются ArduPilot .bin, текстовый .log (Mission Planner), MAVLink .tlog, DJI FlightRecord .txt и CSV",
     )
 
     private fun parse(
@@ -107,6 +115,7 @@ object LogReader {
         buffer: ByteBuffer? = null,
         text: ((ProgressListener) -> DataFlashParser.Result)? = null,
         direct: ((ProgressListener) -> FlightLog)? = null,
+        djiKeychains: String? = null,
     ): Parsed {
         listener?.onStage(0, sizeText(size))
         listener?.onProgress(0.05f)
@@ -122,6 +131,13 @@ object LogReader {
             LogFormat.CSV -> {
                 val l = direct!!(progress)
                 listener?.onStage(1, "${l.messageCount} строк")
+                listener?.onStage(2, null)
+                l
+            }
+            LogFormat.DJI -> {
+                val dji = DjiLog(buffer!!)
+                val l = DjiMapper.map(name, size, dji, djiKeychains, progress)
+                listener?.onStage(1, "v${dji.version} · ${l.messageCount} записей")
                 listener?.onStage(2, null)
                 l
             }

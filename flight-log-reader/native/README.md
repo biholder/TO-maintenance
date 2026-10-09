@@ -10,6 +10,13 @@ Barlow / Barlow Condensed, квадратные углы, волосяные г�
   - ArduPilot **текстовый `.log`** (Mission Planner / mavlogdump);
   - **MAVLink `.tlog`** (v1 и v2, проверка CRC) — HEARTBEAT, GLOBAL_POSITION_INT, GPS_RAW_INT,
     ATTITUDE, VFR_HUD, SYS_STATUS, BATTERY_STATUS, VIBRATION, STATUSTEXT, PARAM_VALUE;
+  - **DJI FlightRecord `.txt`** (DJI GO 4, DJI Fly, DJI Pilot): высота, скорости, углы, спутники, батарея,
+    режимы, точка дома, подсказки и предупреждения приложения, флаги контроллера (вибрации, блокировка мотора,
+    нехватка тяги, ошибка компаса…). Логи до v12 читаются без сети. Логи v13+ (все современные дроны)
+    зашифрованы AES, ключи к каждому файлу выдаёт только DJI: при импорте приложение просит API-ключ
+    DJI Open API (developer.dji.com → Create App → Open API → SDK key), один раз запрашивает ключи
+    и сохраняет их рядом с логом — дальше лог открывается без сети. В DJI уходят только зашифрованные
+    ключи из лога, не данные полёта;
   - **CSV** — столбцы распознаются по названиям: экспорт PLOV, выгрузки DJI (AirData, PhantomHelp,
     Litchi), таблицы в стиле ArduPilot (`GPS.Spd`, `BAT.Volt`) и произвольные таблицы. Единицы
     пересчитываются по подписи (`feet`, `mph`, `km/h`, `mm`, `mV`…), разделитель `,` `;` или табуляция,
@@ -34,7 +41,7 @@ Barlow / Barlow Condensed, квадратные углы, волосяные г�
 
 ## Ещё не сделано
 
-- PX4 ULog, DJI FlightRecord (нужен ключ DJI API), Blackbox — парсеры в планах.
+- PX4 ULog, DJI `.DAT` (бортовой журнал), Blackbox — парсеры в планах.
 - USB-OTG / MAVLink FTP загрузка с контроллера.
 - Подложка карты (MapLibre с офлайн-тайлами) — пока трек на сетке.
 
@@ -70,4 +77,9 @@ pip install pymavlink
 python3 tools/make_sample_logs.py
 ```
 
+Синтетические логи DJI для тестов: `tools/make_dji_samples.py` (нужен `pycryptodome`), сверка с эталонным
+парсером — `node tools/verify_dji.mjs <путь к dji_log_parser_js.mjs из npm-пакета dji-log-parser-js>`.
+
+Разбор DJI FlightRecord перенесён из [dji-log-parser](https://github.com/lvauvillier/dji-log-parser)
+(MIT, © Luc Vauvillier).
 Шрифты Barlow — SIL Open Font License (`app/src/main/assets/OFL-Barlow.txt`); иконки — Lucide (ISC).

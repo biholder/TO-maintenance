@@ -1,0 +1,95 @@
+{
+ "v12": {
+  "version": 12,
+  "productType": "MavicAir2",
+  "aircraftName": "Mavic Air 2",
+  "aircraftSn": "SN12XYZ",
+  "startTime": "2026-09-14T11:32:05Z",
+  "totalDistance": 1834.5,
+  "counts": {
+   "Home": 1,
+   "Custom": 1200,
+   "OSD": 1200,
+   "CenterBattery": 240,
+   "Unknown": 3
+  },
+  "osdFirstLat": 55.751244,
+  "osdFirstLon": 37.618423,
+  "osdMaxAltitude": 39.900001525878906,
+  "osdModes": [
+   "GPSAtti",
+   "EngineStart",
+   "AutoTakeoff",
+   "GoHome",
+   "AutoLanding"
+  ],
+  "osdVibrating": 60,
+  "osdMotorUp": 1140,
+  "osdMinGps": 9,
+  "batteryMinVoltage": 16.233999252319336,
+  "batteryLastCurrent": -0.30000001192092896,
+  "customFirst": "2026-09-14T11:32:05Z",
+  "customLast": "2026-09-14T11:34:04.900Z",
+  "messages": []
+ },
+ "v14": {
+  "version": 14,
+  "productType": "Mavic3",
+  "aircraftName": "Mavic 3",
+  "aircraftSn": "SN14ABC",
+  "startTime": "2026-09-14T11:32:05Z",
+  "totalDistance": 1834.5,
+  "counts": {
+   "KeyStorage": 3,
+   "Home": 1,
+   "Custom": 1200,
+   "OSD": 1200,
+   "CenterBattery": 240,
+   "AppTip": 1,
+   "AppWarn": 1,
+   "AppSeriousWarn": 1
+  },
+  "osdFirstLat": 55.751244,
+  "osdFirstLon": 37.618423,
+  "osdMaxAltitude": 39.900001525878906,
+  "osdModes": [
+   "GPSAtti",
+   "EngineStart",
+   "AutoTakeoff",
+   "GoHome",
+   "AutoLanding"
+  ],
+  "osdVibrating": 60,
+  "osdMotorUp": 1140,
+  "osdMinGps": 9,
+  "batteryMinVoltage": 16.233999252319336,
+  "batteryLastCurrent": -0.30000001192092896,
+  "customFirst": "2026-09-14T11:32:05Z",
+  "customLast": "2026-09-14T11:34:04.900Z",
+  "messages": [
+   "AppTip:Motors started",
+   "AppWarn:Strong winds. Fly with caution",
+   "AppSeriousWarn:Low battery. Returning to home"
+  ],
+  "keychainsRequest": {
+   "version": 1,
+   "department": 3,
+   "keychainsArray": [
+    [
+     {
+      "featurePoint": "FR_Standardization_Feature_Base_1",
+      "aesCiphertext": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB"
+     },
+     {
+      "featurePoint": "FR_Standardization_Feature_DJIFlyCustom_7",
+      "aesCiphertext": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH"
+     },
+     {
+      "featurePoint": "FR_Standardization_Feature_Battery_13",
+      "aesCiphertext": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0N"
+     }
+    ]
+   ]
+  }
+ }
+}

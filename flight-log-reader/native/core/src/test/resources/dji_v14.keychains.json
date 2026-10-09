@@ -1,0 +1,19 @@
+[
+ [
+  {
+   "featurePoint": "FR_Standardization_Feature_Base_1",
+   "aesKey": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+   "aesIv": "EBESExQVFhcYGRobHB0eHw=="
+  },
+  {
+   "featurePoint": "FR_Standardization_Feature_DJIFlyCustom_7",
+   "aesKey": "ZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoM=",
+   "aesIv": "MjM0NTY3ODk6Ozw9Pj9AQQ=="
+  },
+  {
+   "featurePoint": "FR_Standardization_Feature_Battery_13",
+   "aesKey": "yMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5uc=",
+   "aesIv": "RkdISUpLTE1OT1BRUlNUVQ=="
+  }
+ ]
+]

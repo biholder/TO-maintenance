@@ -44,6 +44,8 @@ class Analysis(val summary: Summary, val issues: List<Issue>, val healthy: List<
             ?: if (issues.isEmpty()) "Норма" else "${issues.size} ${plural(issues.size, "предупр.", "предупр.", "предупр.")}"
 }
 
+private val DJI_SOURCES = setOf("OSD", "OSD-CRIT", "OSD-ACTION", "SERIOUS")
+
 object Analyzer {
     const val VIBE_WARN = 30f
     const val VIBE_CRIT = 60f
@@ -161,6 +163,27 @@ object Analyzer {
             if (bySub.keys.none { it in setOf(16, 17, 24) }) healthy += "EKF3"
             if (3 !in bySub.keys) healthy += "Компас"
             if (5 !in bySub.keys && 2 !in bySub.keys) healthy += "RC"
+        }
+
+        // DJI: флаги контроллера, аварийные действия и серьёзные предупреждения приложения.
+        if (log.format == LogFormat.DJI) {
+            val dji = log.events.filter { it.kind == EventKind.WARN && it.source in DJI_SOURCES }
+            for ((title, list) in dji.groupBy { it.title }) {
+                val first = list.first()
+                issues += Issue(
+                    if (first.source == "OSD-CRIT") Severity.CRITICAL else Severity.WARN, title,
+                    first.time, list.last().time + 1,
+                    when (first.source) {
+                        "OSD-ACTION" -> "Контроллер DJI выполнил автоматическое действие. Проверьте журнал событий."
+                        "SERIOUS" -> "Серьёзное предупреждение приложения DJI" + if (list.size > 1) " (${list.size} раз)." else "."
+                        else -> first.detail
+                    },
+                    null,
+                )
+            }
+            val titles = dji.map { it.title }.toSet()
+            if ("Ошибка компаса" !in titles) healthy += "Компас"
+            if (titles.none { it.startsWith("Блокировка") || it.startsWith("Недостаточно") }) healthy += "Моторы"
         }
 
         issues.sortWith(compareByDescending<Issue> { it.severity }.thenBy { it.start })

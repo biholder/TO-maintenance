@@ -6,6 +6,7 @@ enum class LogFormat(val ext: String, val source: String) {
     DATAFLASH_TEXT("log", "ArduPilot"),
     TLOG("tlog", "MAVLink"),
     CSV("csv", "CSV"),
+    DJI("txt", "DJI"),
 }
 
 /** Временной ряд одного канала: время в секундах от начала лога. */
@@ -140,4 +141,4 @@ fun interface ProgressListener {
     fun onProgress(stage: Int, fraction: Float)
 }
 
-class LogParseException(message: String) : Exception(message)
+open class LogParseException(message: String) : Exception(message)

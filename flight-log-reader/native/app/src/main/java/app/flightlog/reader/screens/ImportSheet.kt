@@ -38,7 +38,7 @@ private val FORMATS = listOf(
     Triple(".tlog", "MAVLink", "ArduPilot / PX4"),
     Triple(".csv", "Таблица", "DJI (AirData), PLOV и др."),
     Triple(".ulg", "ULog", "PX4 · скоро"),
-    Triple(".txt", "FlightRecord", "DJI · скоро"),
+    Triple(".txt", "FlightRecord", "DJI Fly / GO 4 / Pilot"),
     Triple(".bbl", "Blackbox", "Betaflight / INAV · скоро"),
 )
 

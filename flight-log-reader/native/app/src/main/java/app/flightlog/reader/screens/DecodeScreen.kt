@@ -15,6 +15,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -86,6 +92,7 @@ fun DecodeScreen(vm: AppViewModel) {
                 }
             }
 
+            d.djiKeyVersion?.let { v -> DjiKeyBlock(vm, v, d.djiBusy) }
             d.error?.let { err ->
                 Column(Modifier.padding(top = 24.dp).fillMaxWidth().background(tk.wr1).padding(14.dp)) {
                     Kicker("Ошибка разбора", color = tk.cr)
@@ -103,9 +110,38 @@ fun DecodeScreen(vm: AppViewModel) {
         Box(Modifier.fillMaxWidth().padding(16.dp)) {
             when {
                 d.done -> PrimaryButton("Открыть полёт", { vm.openDecoded() }, Modifier.fillMaxWidth())
+                d.djiKeyVersion != null -> SecondaryButton("Отмена", { vm.back() }, Modifier.fillMaxWidth())
                 d.error != null -> SecondaryButton("Назад", { vm.back() }, Modifier.fillMaxWidth())
                 else -> SecondaryButton("Отмена", { vm.back() }, Modifier.fillMaxWidth())
             }
         }
+    }
+}
+
+/** Лог DJI v13+ зашифрован: ввод API-ключа DJI Open API и запрос ключей AES. */
+@Composable
+private fun DjiKeyBlock(vm: AppViewModel, version: Int, busy: Boolean) {
+    var key by remember { mutableStateOf(vm.djiApiKey) }
+    Column(Modifier.padding(top = 24.dp).fillMaxWidth().background(tk.ac1).hairline(tk.ac).padding(14.dp)) {
+        Kicker("Нужен ключ DJI", color = tk.act)
+        T("Лог DJI версии $version зашифрован. Ключи расшифровки к каждому файлу выдаёт только DJI — " +
+            "по бесплатному API-ключу разработчика. Получить ключи нужно один раз: они сохранятся рядом с логом.",
+            Type.body(14.sp), modifier = Modifier.padding(top = 6.dp))
+        T("Где взять API-ключ: developer.dji.com → войти → Create App → тип «Open API» → активировать по письму → " +
+            "в карточке приложения скопировать SDK key.",
+            Type.body(13.sp), tk.mu, Modifier.padding(top = 8.dp))
+        Box(Modifier.padding(top = 12.dp).fillMaxWidth().height(46.dp).background(tk.bg).hairline(tk.dv).padding(horizontal = 12.dp),
+            contentAlignment = Alignment.CenterStart) {
+            if (key.isEmpty()) T("API-ключ DJI (SDK key)", Type.body(15.sp), tk.mu)
+            BasicTextField(
+                key, { key = it }, singleLine = true,
+                textStyle = Type.body(15.sp).copy(color = tk.tx), cursorBrush = SolidColor(tk.ac),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        PrimaryButton(if (busy) "Запрашиваю ключи…" else "Получить ключи и открыть", { vm.fetchDjiKeys(key) },
+            Modifier.padding(top = 12.dp).fillMaxWidth(), height = 44.dp, enabled = !busy && key.isNotBlank(), marks = false)
+        T("В DJI отправляются только зашифрованные ключи из лога, без координат и данных полёта.",
+            Type.body(12.sp), tk.mu, Modifier.padding(top = 8.dp))
     }
 }

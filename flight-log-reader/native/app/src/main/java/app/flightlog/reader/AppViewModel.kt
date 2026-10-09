@@ -42,12 +42,17 @@ class DecodeState(
     val error: String? = null,
     val entryId: String? = null,
     val formatTitle: String = "",
+    /** Лог DJI v13+ зашифрован: нужен API-ключ DJI для получения ключей AES (номер версии лога). */
+    val djiKeyVersion: Int? = null,
+    val djiBusy: Boolean = false,
 ) {
     fun copy(
         current: Int = this.current, results: Map<Int, String> = this.results, progress: Float = this.progress,
         mbPerSec: Float = this.mbPerSec, done: Boolean = this.done, error: String? = this.error,
         entryId: String? = this.entryId, formatTitle: String = this.formatTitle, stages: List<String> = this.stages,
-    ) = DecodeState(fileName, sizeBytes, source, stages, current, results, progress, mbPerSec, done, error, entryId, formatTitle)
+        djiKeyVersion: Int? = this.djiKeyVersion, djiBusy: Boolean = this.djiBusy,
+    ) = DecodeState(fileName, sizeBytes, source, stages, current, results, progress, mbPerSec, done, error, entryId, formatTitle,
+        djiKeyVersion, djiBusy)
 }
 
 /** Понятный текст ошибки; нехватка памяти не роняет приложение, а показывается пользователю. */
@@ -71,7 +76,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         val top = stack.removeAt(stack.lastIndex)
         if (top == Screen.FLIGHT) { playing = false; playJob?.cancel() }
-        if (top == Screen.DECODE) decodeJob?.cancel()
+        if (top == Screen.DECODE) {
+            decodeJob?.cancel()
+            pending?.first?.delete()
+            pending = null
+        }
         return true
     }
 
@@ -137,14 +146,62 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // Настройки: API-ключ DJI Open API для зашифрованных логов DJI v13+.
+    private val prefs = app.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
+    var djiApiKey by mutableStateOf(prefs.getString("dji_api_key", "") ?: "")
+        private set
+
+    /** Подготовленный файл, ожидающий ключей DJI. */
+    private var pending: Pair<File, String>? = null
+    private var pendingRequest: String? = null
+
     private fun startImport(source: String, stage: () -> Pair<File, String>) {
         sheet = false
         decodeJob?.cancel()
+        pending?.first?.delete()
+        pending = null
         decode = DecodeState("…", 0, source, LogReader.stages(LogFormat.DATAFLASH))
         if (screen != Screen.DECODE) push(Screen.DECODE)
         decodeJob = viewModelScope.launch {
+            val staged = try {
+                withContext(Dispatchers.IO) { stage() }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                decode = decode?.copy(error = errorText(e))
+                return@launch
+            }
+            runImport(staged.first, staged.second, source, null)
+        }
+    }
+
+    /** Ключи DJI: запрос к DJI Open API и повтор импорта с ними. */
+    fun fetchDjiKeys(apiKey: String) {
+        val (file, name) = pending ?: return
+        val request = pendingRequest ?: return
+        val d = decode ?: return
+        val key = apiKey.trim()
+        if (key.isEmpty()) return
+        prefs.edit().putString("dji_api_key", key).apply()
+        djiApiKey = key
+        decode = d.copy(djiBusy = true, error = null)
+        decodeJob = viewModelScope.launch {
+            val keys = try {
+                withContext(Dispatchers.IO) { app.flightlog.core.DjiKeychains.fetch(key, request) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                decode = decode?.copy(djiBusy = false, error = errorText(e))
+                return@launch
+            }
+            decode = decode?.copy(djiKeyVersion = null, djiBusy = false)
+            runImport(file, name, d.source, keys)
+        }
+    }
+
+    private suspend fun runImport(file: File, name: String, source: String, djiKeys: String?) {
+        run {
             try {
-                val (file, name) = withContext(Dispatchers.IO) { stage() }
                 val head = LogReader.head(file)
                 val fmt = LogReader.detect(name, head)
                 decode = DecodeState(name, file.length(), source, LogReader.stages(fmt ?: LogFormat.DATAFLASH))
@@ -160,7 +217,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         decode = d.copy(progress = p, mbPerSec = if (sec > 0.05f) d.sizeBytes * p / 1048576f / sec else d.mbPerSec)
                     },
                 )
-                val (entry, parsed) = withContext(Dispatchers.Default) { repo.import(file, name, listener) }
+                val (entry, parsed) = withContext(Dispatchers.Default) { repo.import(file, name, listener, djiKeys) }
+                pending = null
+                pendingRequest = null
                 val d = decode!!
                 decode = d.copy(
                     current = d.stages.size, progress = 1f, done = true, entryId = entry.id,
@@ -169,11 +228,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         LogFormat.DATAFLASH_TEXT -> "ArduPilot, текстовый лог · ${parsed.log.vehicle.firmware.ifEmpty { "прошивка не определена" }}"
                         LogFormat.TLOG -> "MAVLink telemetry · ${parsed.log.vehicle.autopilot}"
                         LogFormat.CSV -> "Таблица CSV · ${parsed.log.vehicle.autopilot} · ${parsed.log.series.size} каналов"
+                        LogFormat.DJI -> "DJI FlightRecord · ${parsed.log.vehicle.frame.ifEmpty { parsed.log.vehicle.board }}"
                     },
                 )
                 reload()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
+            } catch (e: app.flightlog.core.DjiMapper.KeychainsRequired) {
+                // Файл сохраняется до получения ключей.
+                pending = file to name
+                pendingRequest = e.requestJson
+                decode = decode?.copy(djiKeyVersion = e.version)
             } catch (e: Throwable) {
                 decode = decode?.copy(error = errorText(e))
             }
