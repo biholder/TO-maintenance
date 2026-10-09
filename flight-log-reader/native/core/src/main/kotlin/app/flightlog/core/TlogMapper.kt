@@ -4,15 +4,27 @@ import kotlin.math.PI
 
 /** Преобразует пакеты MAVLink в модель полёта. */
 object TlogMapper {
-    fun map(fileName: String, fileSize: Long, r: TlogParser.Result): FlightLog {
-        val packets = r.packets
-        // Борт — система, приславшая HEARTBEAT с реальным автопилотом (autopilot != 8 INVALID).
-        val hb = packets.firstOrNull { it.msgId == TlogParser.HEARTBEAT && (it.payload.get(5).toInt() and 0xFF) != 8 }
-            ?: throw LogParseException("В логе нет HEARTBEAT от борта")
+    /** Пакеты с телеметрией, которые прореживаются до 10 Гц; события и параметры — нет. */
+    private val DECIMATED = setOf(
+        TlogParser.SYS_STATUS, TlogParser.GPS_RAW_INT, TlogParser.ATTITUDE, TlogParser.GLOBAL_POSITION_INT,
+        TlogParser.VFR_HUD, TlogParser.BATTERY_STATUS, TlogParser.VIBRATION,
+    )
+    private const val MIN_GAP_US = 80_000L
+
+    fun map(fileName: String, fileSize: Long, buffer: java.nio.ByteBuffer, progress: ProgressListener? = null): FlightLog {
+        val parser = TlogParser()
+        // Проход 1: борт — система, приславшая HEARTBEAT с реальным автопилотом (autopilot != 8 INVALID).
+        var hbFound: TlogParser.Packet? = null
+        parser.scan(buffer) { p ->
+            if (p.msgId == TlogParser.HEARTBEAT && (p.payload.get(5).toInt() and 0xFF) != 8) { hbFound = p; false } else true
+        }
+        val hb = hbFound ?: throw LogParseException("В логе нет HEARTBEAT от борта")
         val sys = hb.sysId
         val comp = hb.compId
-        val own = packets.filter { it.sysId == sys && it.compId == comp }
-        val t0 = own.first().timeUs
+        var t0 = -1L
+        var lastUs = 0L
+        var ownCount = 0L
+        val lastKept = HashMap<Int, Long>()
         fun ts(p: TlogParser.Packet) = ((p.timeUs - t0) / 1e6).toFloat()
 
         val mavType = hb.payload.get(4).toInt() and 0xFF
@@ -42,7 +54,17 @@ object TlogMapper {
         var lastMode = -1
         var startUtc: Long? = null
 
-        for (p in own) {
+        // Проход 2: сборка каналов.
+        parser.scan(buffer, progress) scan@{ p ->
+            if (p.sysId != sys || p.compId != comp) return@scan true
+            if (t0 < 0) t0 = p.timeUs
+            ownCount++
+            lastUs = p.timeUs
+            if (p.msgId in DECIMATED) {
+                val last = lastKept[p.msgId]
+                if (last != null && p.timeUs >= last && p.timeUs - last < MIN_GAP_US) return@scan true
+                lastKept[p.msgId] = p.timeUs
+            }
             val b = p.payload
             val t = ts(p)
             when (p.msgId) {
@@ -121,6 +143,7 @@ object TlogMapper {
                     if (name.isNotEmpty()) params[name] = Param(name, b.getFloat(0), null)
                 }
             }
+            true
         }
 
         val meta = mapOf(
@@ -146,7 +169,7 @@ object TlogMapper {
             val c = cols[key] ?: continue
             series[key] = Series(key, m.first, m.second, m.third, c.first.toFloatArray(), c.second.toFloatArray())
         }
-        val duration = own.last().let { ts(it) }
+        val duration = ((lastUs - t0) / 1e6).toFloat()
         return FlightLog(
             fileName = fileName, fileSize = fileSize, format = LogFormat.TLOG,
             vehicle = VehicleInfo(
@@ -157,7 +180,7 @@ object TlogMapper {
             duration = duration, series = series,
             track = Track(tT.toFloatArray(), tLat.toDoubleArray(), tLon.toDoubleArray(), tAlt.toFloatArray(), tSpd.toFloatArray()),
             events = events.sortedBy { it.time }, modes = modes, params = params.values.sortedBy { it.name },
-            armTime = armT, disarmTime = disarmT, messageCount = own.size,
+            armTime = armT, disarmTime = disarmT, messageCount = ownCount,
         )
     }
 

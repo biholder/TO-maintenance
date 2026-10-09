@@ -200,7 +200,9 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
                 val g = TrackGeometry(tr, size.width, size.height)
                 val w = 3.dp.toPx()
                 var prev = g.project(0)
-                for (i in 1 until tr.size) {
+                // Не больше ~3000 отрезков: длинные логи иначе тормозят при воспроизведении.
+                val step = (tr.size / 3000).coerceAtLeast(1)
+                for (i in step until tr.size step step) {
                     val pt = g.project(i)
                     val k = ((colorValues[i] - lo) / (hi - lo) * (ramp.size - 1)).roundToInt().coerceIn(0, ramp.size - 1)
                     val alpha = if (i > cur) 0.25f else 1f

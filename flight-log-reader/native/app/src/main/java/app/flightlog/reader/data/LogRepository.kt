@@ -70,7 +70,7 @@ class LogRepository(private val context: Context) {
     private val dir = File(context.filesDir, "logs").apply { mkdirs() }
     private val indexFile = File(dir, "index.json")
     private val cache = object : LinkedHashMap<String, LogReader.Parsed>(4, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, LogReader.Parsed>?) = size > 3
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, LogReader.Parsed>?) = size > 2
     }
 
     @Synchronized
@@ -114,7 +114,9 @@ class LogRepository(private val context: Context) {
         try {
             val parsed = LogReader.read(staged, name, listener)
             val entry = LogEntry.of(UUID.randomUUID().toString(), staged.length(), System.currentTimeMillis(), parsed.log, parsed.analysis)
-            staged.copyTo(fileOf(entry), overwrite = true)
+            // Перенос, а не копия: большие логи не должны временно занимать место дважды.
+            val dst = fileOf(entry)
+            if (!staged.renameTo(dst)) staged.copyTo(dst, overwrite = true)
             synchronized(this) {
                 save(list() + entry)
                 cache[entry.id] = parsed

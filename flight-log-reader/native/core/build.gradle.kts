@@ -16,3 +16,8 @@ kotlin {
 dependencies {
     testImplementation(kotlin("test-junit"))
 }
+
+tasks.test {
+    // Как на слабом телефоне: большой лог должен помещаться в ограниченную кучу.
+    maxHeapSize = "256m"
+}

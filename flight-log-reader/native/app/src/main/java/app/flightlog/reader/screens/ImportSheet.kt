@@ -34,10 +34,10 @@ import app.flightlog.reader.ui.tk
 
 private val FORMATS = listOf(
     Triple(".bin", "DataFlash", "ArduPilot"),
+    Triple(".log", "Текстовый", "ArduPilot / Mission Planner"),
     Triple(".tlog", "MAVLink", "ArduPilot / PX4"),
     Triple(".ulg", "ULog", "PX4 · скоро"),
     Triple(".txt", "FlightRecord", "DJI · скоро"),
-    Triple(".DAT", "Бортовой", "DJI · скоро"),
     Triple(".bbl", "Blackbox", "Betaflight / INAV · скоро"),
 )
 

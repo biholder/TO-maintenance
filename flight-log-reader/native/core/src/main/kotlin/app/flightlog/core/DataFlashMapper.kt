@@ -5,7 +5,7 @@ object DataFlashMapper {
     private const val GPS_EPOCH_MS = 315964800000L // 1980-01-06T00:00:00Z
     private const val LEAP_SECONDS = 18
 
-    fun map(fileName: String, fileSize: Long, r: DataFlashParser.Result): FlightLog {
+    fun map(fileName: String, fileSize: Long, r: DataFlashParser.Result, format: LogFormat = LogFormat.DATAFLASH): FlightLog {
         val t = r.tables
         val t0 = t.values.mapNotNull { tab -> tab.numeric["TimeUS"]?.takeIf { it.size > 0 }?.get(0) }
             .minOrNull() ?: 0.0
@@ -140,7 +140,7 @@ object DataFlashMapper {
         } ?: emptyList()
 
         return FlightLog(
-            fileName = fileName, fileSize = fileSize, format = LogFormat.DATAFLASH,
+            fileName = fileName, fileSize = fileSize, format = format,
             vehicle = VehicleInfo("ArduPilot", vehicleType, firmware, board, frame, gps),
             startUtcMillis = startUtc, duration = tEnd, series = series, track = track,
             events = events, modes = modes, params = params, armTime = armT, disarmTime = disarmT,

@@ -133,7 +133,7 @@ private fun EmptyLibrary(vm: AppViewModel, nothing: Boolean) {
         Icon(Icons.Drone, tk.mu, size = 40.dp)
         T(if (nothing) "Библиотека пуста" else "Нет логов этого источника", Type.h2, modifier = Modifier.padding(top = 14.dp))
         T(
-            if (nothing) "Импортируйте .bin (DataFlash) или .tlog (MAVLink) с телефона — или откройте демо-полёты, чтобы посмотреть возможности."
+            if (nothing) "Импортируйте .bin или .log (ArduPilot) либо .tlog (MAVLink) с телефона — или откройте демо-полёты, чтобы посмотреть возможности."
             else "Поддерживаются ArduPilot DataFlash и телеметрия MAVLink. PX4 ULog, DJI и Blackbox — в работе.",
             Type.body(14.sp), tk.mu, Modifier.padding(top = 6.dp),
         )

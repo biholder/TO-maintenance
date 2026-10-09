@@ -324,6 +324,38 @@ def write_tlog(path, duration, start_utc, home):
     out.close()
 
 
+def write_text_log(bin_path, out_path):
+    """Текстовый лог в формате Mission Planner из .bin (через эталонный DFReader)."""
+    from pymavlink import DFReader
+    r = DFReader.DFReader_binary(bin_path)
+    with open(out_path, "w") as f:
+        for fmt in sorted(r.formats.values(), key=lambda x: x.type):
+            f.write("FMT, %u, %u, %s, %s, %s\n" % (fmt.type, fmt.len, fmt.name, fmt.format, ",".join(fmt.columns)))
+        while True:
+            m = r.recv_msg()
+            if m is None:
+                break
+            if m.get_type() == "FMT":
+                continue
+            vals = []
+            for c in m.get_fieldnames():
+                v = getattr(m, c)
+                vals.append("%.7f" % v if isinstance(v, float) else str(v))
+            f.write("%s, %s\n" % (m.get_type(), ", ".join(vals)))
+
+
+def verify_text(path):
+    from pymavlink import DFReader
+    r = DFReader.DFReader_text(path)
+    counts = {}
+    while True:
+        m = r.recv_msg()
+        if m is None:
+            break
+        counts[m.get_type()] = counts.get(m.get_type(), 0) + 1
+    return counts
+
+
 def verify_bin(path):
     from pymavlink import DFReader
     r = DFReader.DFReader_binary(path)
@@ -423,6 +455,9 @@ def main():
     for p in (a, b, small):
         print(p, os.path.getsize(p), verify_bin(p))
     print(tlog, os.path.getsize(tlog), verify_tlog(tlog))
+    text = os.path.join(TEST_RES, "copter_small.log")
+    write_text_log(small, text)
+    print(text, os.path.getsize(text), verify_text(text))
     write_expected(small, tlog, os.path.join(TEST_RES, "expected.properties"))
 
 

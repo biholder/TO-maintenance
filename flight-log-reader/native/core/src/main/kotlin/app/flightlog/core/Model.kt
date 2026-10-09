@@ -3,6 +3,7 @@ package app.flightlog.core
 /** Формат файла лога. */
 enum class LogFormat(val ext: String, val source: String) {
     DATAFLASH("bin", "ArduPilot"),
+    DATAFLASH_TEXT("log", "ArduPilot"),
     TLOG("tlog", "MAVLink"),
 }
 
@@ -103,7 +104,7 @@ class FlightLog(
     val params: List<Param>,
     val armTime: Float?,
     val disarmTime: Float?,
-    val messageCount: Int,
+    val messageCount: Long,
 ) {
     fun modeAt(t: Float): String = modes.lastOrNull { it.time <= t }?.name ?: "—"
     fun isArmedAt(t: Float): Boolean =

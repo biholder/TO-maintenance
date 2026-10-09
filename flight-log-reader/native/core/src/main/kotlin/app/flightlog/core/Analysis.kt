@@ -157,7 +157,7 @@ object Analyzer {
                 list.first().time, list.last().time + 1,
                 "Зафиксировано ошибок: ${list.size}. Смотрите журнал событий.", null)
         }
-        if (log.format == LogFormat.DATAFLASH) {
+        if (log.format == LogFormat.DATAFLASH || log.format == LogFormat.DATAFLASH_TEXT) {
             if (bySub.keys.none { it in setOf(16, 17, 24) }) healthy += "EKF3"
             if (3 !in bySub.keys) healthy += "Компас"
             if (5 !in bySub.keys && 2 !in bySub.keys) healthy += "RC"

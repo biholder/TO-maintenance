@@ -16,84 +16,95 @@ class TlogParser {
 
     class Result(val packets: List<Packet>, val badBytes: Long)
 
+    /** Все пакеты списком — для небольших файлов и тестов. */
     fun parse(bytes: ByteArray, progress: ProgressListener? = null): Result {
         val out = ArrayList<Packet>()
+        val bad = scan(ByteBuffer.wrap(bytes), progress) { out += it; true }
+        if (out.isEmpty()) throw LogParseException("Не найдено ни одного пакета MAVLink")
+        return Result(out, bad)
+    }
+
+    /**
+     * Потоковый разбор: [onPacket] вызывается для каждого известного пакета,
+     * false — остановить. Возвращает число пропущенных байт.
+     */
+    fun scan(buffer: ByteBuffer, progress: ProgressListener? = null, onPacket: (Packet) -> Boolean): Long {
+        val b = buffer.duplicate().order(ByteOrder.BIG_ENDIAN)
         var pos = 0
         var bad = 0L
-        val n = bytes.size
+        val n = b.limit()
         var lastReport = 0
-        val tsBuf = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN)
         while (pos + 8 + 8 <= n) {
-            val magic = bytes[pos + 8].toInt() and 0xFF
-            val ok = when (magic) {
-                0xFE -> tryV1(bytes, pos, tsBuf, out)
-                0xFD -> tryV2(bytes, pos, tsBuf, out)
-                else -> -1
+            val magic = b.get(pos + 8).toInt() and 0xFF
+            val r = when (magic) {
+                0xFE -> tryV1(b, pos)
+                0xFD -> tryV2(b, pos)
+                else -> null
             }
-            if (ok < 0) { pos++; bad++; continue }
-            pos = ok
-            if (progress != null && pos - lastReport > 256 * 1024) {
+            if (r == null) { pos++; bad++; continue }
+            pos = r.first
+            val packet = r.second
+            if (packet != null && !onPacket(packet)) break
+            if (progress != null && pos - lastReport > 1 shl 20) {
                 lastReport = pos
                 progress.onProgress(0, pos.toFloat() / n)
             }
         }
         progress?.onProgress(0, 1f)
-        if (out.isEmpty()) throw LogParseException("Не найдено ни одного пакета MAVLink")
-        return Result(out, bad)
+        return bad
     }
 
     private fun plausibleTime(us: Long) = us in 946_684_800_000_000L..4_102_444_800_000_000L // 2000..2100
 
-    private fun tryV1(b: ByteArray, pos: Int, ts: ByteBuffer, out: MutableList<Packet>): Int {
+    private fun u8(b: ByteBuffer, i: Int) = b.get(i).toInt() and 0xFF
+
+    /** Возвращает (позиция после пакета, пакет или null для неизвестного сообщения) либо null при сбое. */
+    private fun tryV1(b: ByteBuffer, pos: Int): Pair<Int, Packet?>? {
         val p = pos + 8
-        if (p + 6 > b.size) return -1
-        val len = b[p + 1].toInt() and 0xFF
+        if (p + 6 > b.limit()) return null
+        val len = u8(b, p + 1)
         val end = p + 6 + len + 2
-        if (end > b.size) return -1
-        val time = ts.getLong(pos)
-        if (!plausibleTime(time)) return -1
-        val msgId = b[p + 5].toInt() and 0xFF
-        val crcExtra = CRC_EXTRA[msgId] ?: return end.also { /* неизвестное сообщение — пропускаем */ }
-        if (!checkCrc(b, p + 1, 5 + len, crcExtra, b, p + 6 + len)) return -1
-        out += Packet(time, b[p + 3].toInt() and 0xFF, b[p + 4].toInt() and 0xFF, msgId, payload(b, p + 6, len, msgId))
-        return end
+        if (end > b.limit()) return null
+        val time = b.getLong(pos)
+        if (!plausibleTime(time)) return null
+        val msgId = u8(b, p + 5)
+        val crcExtra = CRC_EXTRA[msgId] ?: return end to null
+        if (!checkCrc(b, p + 1, 5 + len, crcExtra, p + 6 + len)) return null
+        return end to Packet(time, u8(b, p + 3), u8(b, p + 4), msgId, payload(b, p + 6, len, msgId))
     }
 
-    private fun tryV2(b: ByteArray, pos: Int, ts: ByteBuffer, out: MutableList<Packet>): Int {
+    private fun tryV2(b: ByteBuffer, pos: Int): Pair<Int, Packet?>? {
         val p = pos + 8
-        if (p + 10 > b.size) return -1
-        val len = b[p + 1].toInt() and 0xFF
-        val incompat = b[p + 2].toInt() and 0xFF
-        val sigLen = if (incompat and 0x01 != 0) 13 else 0
+        if (p + 10 > b.limit()) return null
+        val len = u8(b, p + 1)
+        val sigLen = if (u8(b, p + 2) and 0x01 != 0) 13 else 0
         val end = p + 10 + len + 2 + sigLen
-        if (end > b.size) return -1
-        val time = ts.getLong(pos)
-        if (!plausibleTime(time)) return -1
-        val msgId = (b[p + 7].toInt() and 0xFF) or ((b[p + 8].toInt() and 0xFF) shl 8) or ((b[p + 9].toInt() and 0xFF) shl 16)
-        val crcExtra = CRC_EXTRA[msgId] ?: return end
-        if (!checkCrc(b, p + 1, 9 + len, crcExtra, b, p + 10 + len)) return -1
-        out += Packet(time, b[p + 5].toInt() and 0xFF, b[p + 6].toInt() and 0xFF, msgId, payload(b, p + 10, len, msgId))
-        return end
+        if (end > b.limit()) return null
+        val time = b.getLong(pos)
+        if (!plausibleTime(time)) return null
+        val msgId = u8(b, p + 7) or (u8(b, p + 8) shl 8) or (u8(b, p + 9) shl 16)
+        val crcExtra = CRC_EXTRA[msgId] ?: return end to null
+        if (!checkCrc(b, p + 1, 9 + len, crcExtra, p + 10 + len)) return null
+        return end to Packet(time, u8(b, p + 5), u8(b, p + 6), msgId, payload(b, p + 10, len, msgId))
     }
 
-    private fun payload(b: ByteArray, at: Int, len: Int, msgId: Int): ByteBuffer {
+    private fun payload(b: ByteBuffer, at: Int, len: Int, msgId: Int): ByteBuffer {
         val full = maxOf(len, MIN_LEN[msgId] ?: len)
         val arr = ByteArray(full)
-        System.arraycopy(b, at, arr, 0, len)
+        for (i in 0 until len) arr[i] = b.get(at + i)
         return ByteBuffer.wrap(arr).order(ByteOrder.LITTLE_ENDIAN)
     }
 
-    private fun checkCrc(b: ByteArray, from: Int, count: Int, extra: Int, crcArr: ByteArray, crcAt: Int): Boolean {
+    private fun checkCrc(b: ByteBuffer, from: Int, count: Int, extra: Int, crcAt: Int): Boolean {
         var crc = 0xFFFF
         fun acc(x: Int) {
             var tmp = (x xor crc) and 0xFF
             tmp = (tmp xor (tmp shl 4)) and 0xFF
             crc = ((crc shr 8) xor (tmp shl 8) xor (tmp shl 3) xor (tmp shr 4)) and 0xFFFF
         }
-        for (i in from until from + count) acc(b[i].toInt() and 0xFF)
+        for (i in from until from + count) acc(u8(b, i))
         acc(extra)
-        val got = (crcArr[crcAt].toInt() and 0xFF) or ((crcArr[crcAt + 1].toInt() and 0xFF) shl 8)
-        return got == crc
+        return (u8(b, crcAt) or (u8(b, crcAt + 1) shl 8)) == crc
     }
 
     companion object {

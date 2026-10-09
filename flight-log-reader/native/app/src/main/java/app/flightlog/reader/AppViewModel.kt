@@ -50,6 +50,12 @@ class DecodeState(
     ) = DecodeState(fileName, sizeBytes, source, stages, current, results, progress, mbPerSec, done, error, entryId, formatTitle)
 }
 
+/** Понятный текст ошибки; нехватка памяти не роняет приложение, а показывается пользователю. */
+fun errorText(e: Throwable): String = when (e) {
+    is OutOfMemoryError -> "недостаточно памяти устройства для этого лога. Закройте другие приложения и попробуйте снова"
+    else -> e.message ?: e.javaClass.simpleName
+}
+
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     val repo = LogRepository(app)
 
@@ -139,7 +145,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         decodeJob = viewModelScope.launch {
             try {
                 val (file, name) = withContext(Dispatchers.IO) { stage() }
-                val head = file.inputStream().use { s -> ByteArray(16).also { s.read(it) } }
+                val head = LogReader.head(file)
                 val fmt = LogReader.detect(name, head)
                 decode = DecodeState(name, file.length(), source, LogReader.stages(fmt ?: LogFormat.DATAFLASH))
                 val started = System.nanoTime()
@@ -160,13 +166,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     current = d.stages.size, progress = 1f, done = true, entryId = entry.id,
                     formatTitle = when (parsed.log.format) {
                         LogFormat.DATAFLASH -> "ArduPilot DataFlash · ${parsed.log.vehicle.firmware.ifEmpty { "прошивка не определена" }}"
+                        LogFormat.DATAFLASH_TEXT -> "ArduPilot, текстовый лог · ${parsed.log.vehicle.firmware.ifEmpty { "прошивка не определена" }}"
                         LogFormat.TLOG -> "MAVLink telemetry · ${parsed.log.vehicle.autopilot}"
                     },
                 )
                 reload()
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                decode = decode?.copy(error = e.message ?: e.javaClass.simpleName)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                decode = decode?.copy(error = errorText(e))
             }
         }
     }
@@ -211,8 +219,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (flight == null) viewModelScope.launch {
             try {
                 flight = withContext(Dispatchers.Default) { repo.open(e) }
-            } catch (ex: Exception) {
-                flightError = ex.message ?: ex.javaClass.simpleName
+            } catch (ex: kotlinx.coroutines.CancellationException) {
+                throw ex
+            } catch (ex: Throwable) {
+                flightError = errorText(ex)
             }
         }
     }
@@ -264,8 +274,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val (a, b) = withContext(Dispatchers.Default) { repo.open(es[0]) to repo.open(es[1]) }
                 compareA = es[0] to a
                 compareB = es[1] to b
-            } catch (ex: Exception) {
-                showToast("Не удалось открыть: ${ex.message}")
+            } catch (ex: kotlinx.coroutines.CancellationException) {
+                throw ex
+            } catch (ex: Throwable) {
+                showToast("Не удалось открыть: ${errorText(ex)}")
                 back()
             }
         }
@@ -299,8 +311,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     withContext(Dispatchers.IO) { Exporter.saveToDownloads(ctx, file, exFmt.mime) }
                     showToast("${file.name} сохранён в «Загрузки»")
                 }
-            } catch (ex: Exception) {
-                showToast("Ошибка экспорта: ${ex.message}")
+            } catch (ex: kotlinx.coroutines.CancellationException) {
+                throw ex
+            } catch (ex: Throwable) {
+                showToast("Ошибка экспорта: ${errorText(ex)}")
             } finally {
                 exporting = false
             }

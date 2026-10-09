@@ -15,7 +15,7 @@ class ParserTest {
 
     @Test
     fun dataflashMessageCountsMatchPymavlink() {
-        val r = DataFlashParser(wanted = null).parse(res("copter_small.bin"))
+        val r = DataFlashParser(wanted = null, maxRateHz = 0.0).parse(res("copter_small.bin"))
         for (name in listOf("ATT", "BAT", "CTUN", "ERR", "EV", "GPS", "MODE", "MSG", "PARM", "VIBE")) {
             assertEquals(exp("bin.count.$name").toInt(), r.tables.getValue(name).rows, name)
         }
@@ -24,7 +24,7 @@ class ParserTest {
 
     @Test
     fun dataflashValuesMatchPymavlink() {
-        val r = DataFlashParser().parse(res("copter_small.bin"))
+        val r = DataFlashParser(maxRateHz = 0.0).parse(res("copter_small.bin"))
         val gps = r.tables.getValue("GPS")
         assertEquals(exp("bin.gps.first.lat"), gps.num("Lat")[0], 1e-9)
         assertEquals(exp("bin.gps.first.lng"), gps.num("Lng")[0], 1e-9)
@@ -41,7 +41,7 @@ class ParserTest {
         val bytes = res("copter_small.bin")
         // портим кусок в середине файла
         for (i in 200_000 until 200_500) bytes[i] = (i * 31).toByte()
-        val r = DataFlashParser(wanted = null).parse(bytes)
+        val r = DataFlashParser(wanted = null, maxRateHz = 0.0).parse(bytes)
         assertTrue(r.badBytes > 0)
         val good = exp("bin.count.CTUN").toInt()
         assertTrue(r.tables.getValue("CTUN").rows in (good - 20) until good)
@@ -85,7 +85,7 @@ class ParserTest {
         assertEquals(exp("tlog.count.VIBRATION").toInt(), count(TlogParser.VIBRATION))
         assertEquals(0L, r.badBytes)
 
-        val log = TlogMapper.map("copter_small.tlog", 0, r)
+        val log = TlogMapper.map("copter_small.tlog", 0, java.nio.ByteBuffer.wrap(res("copter_small.tlog")))
         assertEquals(exp("tlog.relalt.max").toFloat(), log.series.getValue(Ch.ALT).max, 1e-3f)
         assertEquals(exp("tlog.volt.min").toFloat(), log.series.getValue(Ch.VOLT).min, 1e-3f)
         assertEquals(exp("tlog.sats.min").toFloat(), log.series.getValue(Ch.SATS).min)
@@ -94,6 +94,53 @@ class ParserTest {
         assertEquals(listOf("STABILIZE", "LOITER", "AUTO", "RTL", "LAND"), log.modes.map { it.name })
         assertNotNull(log.armTime)
         assertEquals(53, log.params.size)
+    }
+
+    @Test
+    fun textLogMatchesBinary() {
+        val bin = LogReader.read(res("copter_small.bin"), "copter_small.bin")
+        val txt = LogReader.read(res("copter_small.log"), "copter_small.log")
+        assertEquals(LogFormat.DATAFLASH_TEXT, txt.log.format)
+        assertEquals(bin.log.vehicle, txt.log.vehicle)
+        assertEquals(bin.log.modes.map { it.name }, txt.log.modes.map { it.name })
+        assertEquals(bin.log.params.size, txt.log.params.size)
+        assertEquals(bin.log.track.size, txt.log.track.size)
+        assertEquals(bin.log.track.lat[100], txt.log.track.lat[100], 1e-7)
+        for ((k, s) in bin.log.series) {
+            val t = txt.log.series.getValue(k)
+            assertEquals(s.size, t.size, k)
+            assertEquals(s.max, t.max, 1e-3f, k)
+        }
+        assertEquals(bin.analysis.issues.map { it.title }, txt.analysis.issues.map { it.title })
+        assertEquals(bin.analysis.summary.distanceM, txt.analysis.summary.distanceM, 0.5)
+    }
+
+    @Test
+    fun textLogKeepsCommasInsideMessages() {
+        val text = """
+            FMT, 128, 89, FMT, BBnNZ, Type,Length,Name,Format,Columns
+            FMT, 130, 75, MSG, QZ, TimeUS,Message
+            FMT, 131, 14, MODE, QMBB, TimeUS,Mode,ModeNum,Rsn
+            MSG, 1000, ArduCopter V4.5.7 (abc)
+            MSG, 2000, PreArm: Battery 1 low voltage, 21.0V
+            MODE, 3000, 5, 5, 1
+        """.trimIndent().toByteArray()
+        val r = TextLogParser().parse(text.inputStream(), text.size.toLong())
+        assertEquals("PreArm: Battery 1 low voltage,21.0V", r.tables.getValue("MSG").str("Message")[1])
+        assertEquals(5.0, r.tables.getValue("MODE").num("Mode")[0])
+    }
+
+    @Test
+    fun decimatesHighRateMessages() {
+        val full = DataFlashParser(maxRateHz = 0.0).parse(res("copter_small.bin"))
+        val dec = DataFlashParser(maxRateHz = 5.0).parse(res("copter_small.bin"))
+        val ctun = full.tables.getValue("CTUN").rows
+        assertTrue(dec.tables.getValue("CTUN").rows in (ctun / 2 - 5)..(ctun / 2 + 5), "${dec.tables.getValue("CTUN").rows}")
+        // события и параметры не прореживаются
+        assertEquals(full.tables.getValue("PARM").rows, dec.tables.getValue("PARM").rows)
+        assertEquals(full.tables.getValue("MSG").rows, dec.tables.getValue("MSG").rows)
+        // при 10 Гц поток 10 Гц сохраняется целиком, несмотря на джиттер меток времени
+        assertEquals(ctun, DataFlashParser().parse(res("copter_small.bin")).tables.getValue("CTUN").rows)
     }
 
     @Test
