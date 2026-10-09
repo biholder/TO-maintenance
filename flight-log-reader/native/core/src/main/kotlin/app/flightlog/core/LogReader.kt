@@ -23,6 +23,13 @@ object LogReader {
             "Журнал событий: MODE, EV, ERR, MSG",
             "Диагностика полёта",
         )
+        LogFormat.CSV -> listOf(
+            "Чтение файла",
+            "Разбор таблицы CSV и распознавание столбцов",
+            "Сборка каналов и трека",
+            "Журнал событий: режимы и сообщения",
+            "Диагностика полёта",
+        )
         LogFormat.TLOG -> listOf(
             "Чтение файла",
             "Разбор пакетов MAVLink v1/v2, проверка CRC",
@@ -37,6 +44,7 @@ object LogReader {
         if (head.isDataFlash()) return LogFormat.DATAFLASH
         if (TextLogParser.looksLikeText(head)) return LogFormat.DATAFLASH_TEXT
         if (ext == "tlog") return LogFormat.TLOG
+        if (ext == "csv" || ext == "tsv") return LogFormat.CSV
         if (ext == "bin") return LogFormat.DATAFLASH
         if (head.size > 9 && ((head[8].toInt() and 0xFF) == 0xFE || (head[8].toInt() and 0xFF) == 0xFD)) return LogFormat.TLOG
         return null
@@ -66,6 +74,9 @@ object LogReader {
             LogFormat.DATAFLASH_TEXT -> file.inputStream().buffered(1 shl 16).use { input ->
                 parse(format, displayName, file.length(), listener, text = { p -> TextLogParser().parse(input, file.length(), p) })
             }
+            LogFormat.CSV -> file.inputStream().buffered(1 shl 16).use { input ->
+                parse(format, displayName, file.length(), listener, direct = { p -> CsvLogParser().parse(input, displayName, file.length(), p) })
+            }
             else -> RandomAccessFile(file, "r").use { raf ->
                 val buf = raf.channel.map(FileChannel.MapMode.READ_ONLY, 0, raf.length())
                 parse(format, displayName, file.length(), listener, buffer = buf)
@@ -76,13 +87,16 @@ object LogReader {
     /** Разбор из памяти — для тестов и небольших файлов. */
     fun read(bytes: ByteArray, name: String, listener: Listener? = null): Parsed {
         val format = detect(name, bytes.copyOf(minOf(64, bytes.size))) ?: throw unknown()
-        return if (format == LogFormat.DATAFLASH_TEXT)
-            parse(format, name, bytes.size.toLong(), listener, text = { p -> TextLogParser().parse(bytes.inputStream(), bytes.size.toLong(), p) })
-        else parse(format, name, bytes.size.toLong(), listener, buffer = ByteBuffer.wrap(bytes))
+        val size = bytes.size.toLong()
+        return when (format) {
+            LogFormat.DATAFLASH_TEXT -> parse(format, name, size, listener, text = { p -> TextLogParser().parse(bytes.inputStream(), size, p) })
+            LogFormat.CSV -> parse(format, name, size, listener, direct = { p -> CsvLogParser().parse(bytes.inputStream(), name, size, p) })
+            else -> parse(format, name, size, listener, buffer = ByteBuffer.wrap(bytes))
+        }
     }
 
     private fun unknown() = LogParseException(
-        "Неизвестный формат файла. Поддерживаются ArduPilot .bin, текстовый .log (Mission Planner) и MAVLink .tlog",
+        "Неизвестный формат файла. Поддерживаются ArduPilot .bin, текстовый .log (Mission Planner), MAVLink .tlog и CSV",
     )
 
     private fun parse(
@@ -92,6 +106,7 @@ object LogReader {
         listener: Listener?,
         buffer: ByteBuffer? = null,
         text: ((ProgressListener) -> DataFlashParser.Result)? = null,
+        direct: ((ProgressListener) -> FlightLog)? = null,
     ): Parsed {
         listener?.onStage(0, sizeText(size))
         listener?.onProgress(0.05f)
@@ -103,6 +118,12 @@ object LogReader {
                 listener?.onStage(1, "${r.tables.size} типов · ${r.messageCount} сообщ.")
                 listener?.onStage(2, null)
                 DataFlashMapper.map(name, size, r, format)
+            }
+            LogFormat.CSV -> {
+                val l = direct!!(progress)
+                listener?.onStage(1, "${l.messageCount} строк")
+                listener?.onStage(2, null)
+                l
             }
             LogFormat.TLOG -> {
                 val l = TlogMapper.map(name, size, buffer!!, progress)

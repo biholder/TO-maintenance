@@ -168,6 +168,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         LogFormat.DATAFLASH -> "ArduPilot DataFlash · ${parsed.log.vehicle.firmware.ifEmpty { "прошивка не определена" }}"
                         LogFormat.DATAFLASH_TEXT -> "ArduPilot, текстовый лог · ${parsed.log.vehicle.firmware.ifEmpty { "прошивка не определена" }}"
                         LogFormat.TLOG -> "MAVLink telemetry · ${parsed.log.vehicle.autopilot}"
+                        LogFormat.CSV -> "Таблица CSV · ${parsed.log.vehicle.autopilot} · ${parsed.log.series.size} каналов"
                     },
                 )
                 reload()

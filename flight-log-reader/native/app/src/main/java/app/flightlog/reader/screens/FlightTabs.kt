@@ -291,7 +291,12 @@ private val CHANNELS = listOf(Ch.ALT, Ch.SPD, Ch.VOLT, Ch.CURR, Ch.VIBE_Z, Ch.SA
 fun ChartsTab(vm: AppViewModel, p: LogReader.Parsed) {
     val log = p.log
     val u = UnitFmt(vm.units)
-    val available = CHANNELS.filter { it in log.series }
+    // Стандартные каналы, затем дополнительные столбцы CSV.
+    val available = CHANNELS.filter { it in log.series } + log.series.keys.filter { it.startsWith("csv:") }
+    LaunchedEffect(p) {
+        // Если стандартных каналов нет (например, в CSV), показать первые доступные.
+        if (vm.channels.none { it in log.series }) vm.channels.addAll(available.take(4))
+    }
     val lowV = log.params.firstOrNull { it.name == "BATT_LOW_VOLT" }?.value?.takeIf { it > 0 }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),

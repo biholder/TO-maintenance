@@ -7,8 +7,14 @@ Barlow / Barlow Condensed, квадратные углы, волосяные г�
 
 - **Разбор логов на устройстве** — без сети и сторонних сервисов:
   - ArduPilot **DataFlash `.bin`** — FMT-описания, все типы полей, восстановление после повреждённых участков;
+  - ArduPilot **текстовый `.log`** (Mission Planner / mavlogdump);
   - **MAVLink `.tlog`** (v1 и v2, проверка CRC) — HEARTBEAT, GLOBAL_POSITION_INT, GPS_RAW_INT,
-    ATTITUDE, VFR_HUD, SYS_STATUS, BATTERY_STATUS, VIBRATION, STATUSTEXT, PARAM_VALUE.
+    ATTITUDE, VFR_HUD, SYS_STATUS, BATTERY_STATUS, VIBRATION, STATUSTEXT, PARAM_VALUE;
+  - **CSV** — столбцы распознаются по названиям: экспорт PLOV, выгрузки DJI (AirData, PhantomHelp,
+    Litchi), таблицы в стиле ArduPilot (`GPS.Spd`, `BAT.Volt`) и произвольные таблицы. Единицы
+    пересчитываются по подписи (`feet`, `mph`, `km/h`, `mm`, `mV`…), разделитель `,` `;` или табуляция,
+    десятичная запятая, время в с / мс / мкс или датой. Нераспознанные числовые столбцы — отдельные графики.
+- **Большие логи** (сотни МБ) — файл отображается в память, частые сообщения прореживаются до 10 Гц.
 - **Библиотека полётов** — импорт файла через системный выбор (память, Google Диск, Telegram…),
   фильтр по источнику, удаление (долгое нажатие), налёт, статус диагностики.
 - **Расшифровка** — реальные этапы разбора с прогрессом и скоростью.

@@ -5,6 +5,7 @@ enum class LogFormat(val ext: String, val source: String) {
     DATAFLASH("bin", "ArduPilot"),
     DATAFLASH_TEXT("log", "ArduPilot"),
     TLOG("tlog", "MAVLink"),
+    CSV("csv", "CSV"),
 }
 
 /** Временной ряд одного канала: время в секундах от начала лога. */
