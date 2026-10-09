@@ -112,3 +112,59 @@ class DjiTest {
         assertEquals(null, LogReader.detect("notes.txt", "hello, this is just a text file".toByteArray()))
     }
 }
+
+/** Подбор ключей: порядок цепочек и перебор «приложения» в запросе к DJI. */
+class DjiKeysTest {
+    private fun res(name: String) = javaClass.getResourceAsStream("/$name")!!.readBytes()
+    private val good = String(res("dji_v14.keychains.json"))
+    private val bogusChain = """[{"featurePoint":"FR_Standardization_Feature_Base_1","aesKey":"${"QUJD".repeat(10)}QUJDRA==","aesIv":"QUJDREVGR0hJSktMTU5PUA=="}]"""
+
+    @Test
+    fun picksMatchingChainWhenOrderDiffers() {
+        val shifted = "[" + bogusChain + "," + good.trim().removePrefix("[").removeSuffix("]") + "]"
+        val log = LogReader.read(res("dji_v14.txt"), "dji_v14.txt", djiKeychains = shifted).log
+        assertEquals(1200, log.series.getValue(Ch.ALT).size)
+    }
+
+    @Test
+    fun keysFitScore() {
+        val dji = DjiLog(ByteBuffer.wrap(res("dji_v14.txt")))
+        assertEquals(1f, dji.keysFit(DjiMapper.parseKeychains(good)))
+        assertTrue(dji.keysFit(DjiMapper.parseKeychains("[$bogusChain]")) < 0.1f)
+    }
+
+    @Test
+    fun retriesOtherDepartmentsUntilKeysFit() {
+        val requests = java.util.Collections.synchronizedList(ArrayList<Map<*, *>>())
+        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/keychains") { ex ->
+            val req = MiniJson.parse(ex.requestBody.readBytes().toString(Charsets.UTF_8)) as Map<*, *>
+            requests += req
+            val ok = ex.requestHeaders.getFirst("Api-Key") == "secret"
+            // «Сервер DJI»: правильные ключи только для DJI Pilot (7), иначе — чужие.
+            val data = if ((req["department"] as Double).toInt() == 7) good else "[$bogusChain]"
+            val body = if (ok) """{"data":$data,"result":{"code":0,"msg":"ok"}}""" else ""
+            ex.sendResponseHeaders(if (ok) 200 else 403, if (body.isEmpty()) -1 else body.toByteArray().size.toLong())
+            if (body.isNotEmpty()) ex.responseBody.use { it.write(body.toByteArray()) }
+            ex.close()
+        }
+        server.start()
+        try {
+            val url = "http://127.0.0.1:${server.address.port}/keychains"
+            val dji = DjiLog(ByteBuffer.wrap(res("dji_v14.txt")))
+            val attempts = ArrayList<String>()
+            val keys = DjiKeychains.fetchMatching("secret", dji, url) { _, label -> attempts += label }
+            assertEquals(listOf(3, 7), requests.map { (it["department"] as Double).toInt() })
+            assertEquals(2, attempts.size)
+            assertEquals(1200, LogReader.read(res("dji_v14.txt"), "dji_v14.txt", djiKeychains = keys).log.series.getValue(Ch.ALT).size)
+
+            // Неверный API-ключ — сразу понятная ошибка, без перебора.
+            requests.clear()
+            val e = assertFailsWith<DjiKeychains.ApiException> { DjiKeychains.fetchMatching("wrong", dji, url) }
+            assertTrue(e.message!!.contains("API-ключ"))
+            assertEquals(1, requests.size)
+        } finally {
+            server.stop(0)
+        }
+    }
+}

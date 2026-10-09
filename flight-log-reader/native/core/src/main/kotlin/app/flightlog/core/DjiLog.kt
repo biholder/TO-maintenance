@@ -78,17 +78,35 @@ class DjiLog(buffer: ByteBuffer) {
     /** Сырая запись после снятия XOR/AES. [data] пусто, если расшифровать не удалось. */
     class Record(val type: Int, val data: ByteArray)
 
+    /** Статистика последнего обхода: сколько записей шифровались AES и сколько не расшифровалось. */
+    var aesTotal = 0
+        private set
+    var aesFailed = 0
+        private set
+
     /**
      * Обход записей. [keychains] — ключи по цепочкам (новая цепочка начинается
      * после записи KeyStorageRecover); для v<13 не нужны.
+     *
+     * Цепочка для участка лога выбирается по первой зашифрованной записи: если
+     * ожидаемая по порядку не расшифровывает её, пробуются остальные — сервер DJI
+     * может вернуть цепочки не в том порядке или без пустых.
+     * [maxAes] — остановиться после стольких AES-записей (для быстрой проверки ключей).
      */
-    fun records(keychains: List<Map<Int, Pair<ByteArray, ByteArray>>>? = null, onRecord: (Record) -> Unit) {
-        val chains = ArrayDeque(keychains ?: emptyList())
-        var chain = HashMap(chains.removeFirstOrNull() ?: emptyMap())
+    fun records(
+        keychains: List<Map<Int, Pair<ByteArray, ByteArray>>>? = null,
+        maxAes: Int = Int.MAX_VALUE,
+        onRecord: (Record) -> Unit,
+    ) {
+        val all = keychains ?: emptyList()
+        var segment = 0
+        var chain: HashMap<Int, Pair<ByteArray, ByteArray>>? = null
+        aesTotal = 0
+        aesFailed = 0
         val lenSize = if (version <= 12) 1 else 2
         var pos = recordsStart
         val end = minOf(recordsEnd, size)
-        while (pos + 1 + lenSize < end) {
+        while (pos + 1 + lenSize < end && aesTotal < maxAes) {
             val type = u8(pos)
             // Вставленные JPEG-миниатюры: FF D8 … FF D9.
             if (type == 0xFF && u8(pos + 1) == 0xD8) {
@@ -110,24 +128,50 @@ class DjiLog(buffer: ByteBuffer) {
                 version <= 12 -> decodeXor(dataStart, len, type).let { it.copyOf(maxOf(0, it.size - 1)) }
                 else -> {
                     val feature = featurePoint(type, version)
-                    val key = if (feature == PLAINTEXT) null else chain[feature]
                     val x = decodeXor(dataStart, len, type)
-                    if (key == null) x.copyOf(maxOf(0, x.size - 1))
+                    if (feature == PLAINTEXT || all.isEmpty() || len < 18) x.copyOf(maxOf(0, x.size - 1))
                     else {
                         val ct = x.copyOf(len - 2)
-                        if (ct.size >= 16) chain[feature] = ct.copyOfRange(ct.size - 16, ct.size) to key.second
-                        decryptAes(ct, key.first, key.second)
+                        val c = chain ?: pickChain(all, segment, feature, ct).also { chain = it }
+                        val key = c[feature]
+                        aesTotal++
+                        if (key == null) { aesFailed++; ByteArray(0) }
+                        else {
+                            c[feature] = ct.copyOfRange(ct.size - 16, ct.size) to key.second
+                            decryptAes(ct, key.first, key.second).also { if (it.isEmpty()) aesFailed++ }
+                        }
                     }
                 }
             }
-            if (type == KEY_STORAGE_RECOVER) chain = HashMap(chains.removeFirstOrNull() ?: emptyMap())
+            if (type == KEY_STORAGE_RECOVER) { segment++; chain = null }
             onRecord(Record(type, data))
             pos = regionEnd + 1
         }
     }
 
-    /** Тело запроса ключей к DJI Open API (как KeychainsRequest в эталоне). */
-    fun keychainsRequestJson(): String {
+    /** Цепочка ключей для участка: по порядку, а если не подходит — первая, что расшифровывает запись. */
+    private fun pickChain(
+        all: List<Map<Int, Pair<ByteArray, ByteArray>>>, segment: Int, feature: Int, ct: ByteArray,
+    ): HashMap<Int, Pair<ByteArray, ByteArray>> {
+        val order = (listOf(segment) + all.indices).distinct().filter { it in all.indices }
+        for (i in order) {
+            val k = all[i][feature] ?: continue
+            if (decryptAes(ct, k.first, k.second).isNotEmpty()) return HashMap(all[i])
+        }
+        return HashMap(all.getOrNull(segment) ?: emptyMap())
+    }
+
+    /** Доля успешно расшифрованных AES-записей на первых [sample] записях (0…1). */
+    fun keysFit(keychains: List<Map<Int, Pair<ByteArray, ByteArray>>>, sample: Int = 300): Float {
+        records(keychains, maxAes = sample) {}
+        return if (aesTotal == 0) 1f else (aesTotal - aesFailed).toFloat() / aesTotal
+    }
+
+    /**
+     * Тело запроса ключей к DJI Open API (как KeychainsRequest в эталоне).
+     * [department] / [requestVersion] — переопределение значений из лога.
+     */
+    fun keychainsRequestJson(department: Int = this.department, requestVersion: Int = auxVersion): String {
         val keychains = ArrayList<List<Map<String, Any?>>>()
         var cur = ArrayList<Map<String, Any?>>()
         if (version >= 13) records { r ->
@@ -136,17 +180,24 @@ class DjiLog(buffer: ByteBuffer) {
                     val bb = ByteBuffer.wrap(r.data).order(ByteOrder.LITTLE_ENDIAN)
                     val fp = bb.getShort(0).toInt() and 0xFFFF
                     val n = minOf(bb.getShort(2).toInt() and 0xFFFF, r.data.size - 4)
-                    cur.add(linkedMapOf(
-                        "featurePoint" to FEATURE_NAMES[fp],
-                        "aesCiphertext" to Base64.getEncoder().encodeToString(r.data.copyOfRange(4, 4 + n)),
-                    ))
+                    // Неизвестный feature point эталон не разбирает как KeyStorage — пропускаем.
+                    FEATURE_NAMES[fp]?.let { name ->
+                        cur.add(linkedMapOf(
+                            "featurePoint" to name,
+                            "aesCiphertext" to Base64.getEncoder().encodeToString(r.data.copyOfRange(4, 4 + n)),
+                        ))
+                    }
                 }
                 KEY_STORAGE_RECOVER -> { keychains.add(cur); cur = ArrayList() }
             }
         }
         keychains.add(cur)
-        return MiniJson.stringify(linkedMapOf("version" to auxVersion, "department" to department, "keychainsArray" to keychains))
+        return MiniJson.stringify(linkedMapOf("version" to requestVersion, "department" to department, "keychainsArray" to keychains))
     }
+
+    /** Сводка для диагностики (без координат и данных полёта). */
+    fun diagnostics(): String = "FlightRecord v$version, aux v$auxVersion, приложение (department) $department, " +
+        "${details.productName.ifEmpty { "модель ?" }}, приложение ${details.appVersion}"
 
     private fun u8(p: Int) = b.get(p).toInt() and 0xFF
     private fun u16(p: Int) = b.getShort(p).toInt() and 0xFFFF

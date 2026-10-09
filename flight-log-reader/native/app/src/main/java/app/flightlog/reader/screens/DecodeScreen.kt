@@ -92,7 +92,7 @@ fun DecodeScreen(vm: AppViewModel) {
                 }
             }
 
-            d.djiKeyVersion?.let { v -> DjiKeyBlock(vm, v, d.djiBusy) }
+            d.djiKeyVersion?.let { v -> DjiKeyBlock(vm, v, d.djiBusy, d.djiStatus) }
             d.error?.let { err ->
                 Column(Modifier.padding(top = 24.dp).fillMaxWidth().background(tk.wr1).padding(14.dp)) {
                     Kicker("Ошибка разбора", color = tk.cr)
@@ -120,7 +120,7 @@ fun DecodeScreen(vm: AppViewModel) {
 
 /** Лог DJI v13+ зашифрован: ввод API-ключа DJI Open API и запрос ключей AES. */
 @Composable
-private fun DjiKeyBlock(vm: AppViewModel, version: Int, busy: Boolean) {
+private fun DjiKeyBlock(vm: AppViewModel, version: Int, busy: Boolean, status: String?) {
     var key by remember { mutableStateOf(vm.djiApiKey) }
     Column(Modifier.padding(top = 24.dp).fillMaxWidth().background(tk.ac1).hairline(tk.ac).padding(14.dp)) {
         Kicker("Нужен ключ DJI", color = tk.act)
@@ -141,6 +141,7 @@ private fun DjiKeyBlock(vm: AppViewModel, version: Int, busy: Boolean) {
         }
         PrimaryButton(if (busy) "Запрашиваю ключи…" else "Получить ключи и открыть", { vm.fetchDjiKeys(key) },
             Modifier.padding(top = 12.dp).fillMaxWidth(), height = 44.dp, enabled = !busy && key.isNotBlank(), marks = false)
+        if (busy && status != null) T(status, Type.body(13.sp), tk.act, Modifier.padding(top = 8.dp))
         T("В DJI отправляются только зашифрованные ключи из лога, без координат и данных полёта.",
             Type.body(12.sp), tk.mu, Modifier.padding(top = 8.dp))
     }

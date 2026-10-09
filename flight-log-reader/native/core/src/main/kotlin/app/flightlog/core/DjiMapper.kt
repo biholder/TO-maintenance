@@ -15,14 +15,29 @@ object DjiMapper {
     fun parseKeychains(json: String): List<Map<Int, Pair<ByteArray, ByteArray>>> {
         val root = MiniJson.parse(json)
         val arr = (root as? Map<*, *>)?.get("data") ?: root
-        val dec = Base64.getDecoder()
         return (arr as List<*>).map { chain ->
             (chain as List<*>).mapNotNull { e ->
                 val m = e as Map<*, *>
-                val fp = DjiLog.FEATURE_IDS[m["featurePoint"]] ?: return@mapNotNull null
-                fp to (dec.decode(m["aesIv"] as String) to dec.decode(m["aesKey"] as String))
+                val fp = featureId(m["featurePoint"]) ?: return@mapNotNull null
+                val iv = b64(m["aesIv"]) ?: return@mapNotNull null
+                val key = b64(m["aesKey"]) ?: return@mapNotNull null
+                fp to (iv to key)
             }.toMap()
         }
+    }
+
+    /** «FR_Standardization_Feature_Base_1», «…base_1» или число 1 → 1. */
+    private fun featureId(v: Any?): Int? = when (v) {
+        is Number -> v.toInt()
+        is String -> DjiLog.FEATURE_IDS[v] ?: DjiLog.FEATURE_IDS.entries.firstOrNull { it.key.equals(v, true) }?.value
+            ?: Regex("""_(\d+)$""").find(v)?.groupValues?.get(1)?.toInt() ?: v.toIntOrNull()
+        else -> null
+    }
+
+    private fun b64(v: Any?): ByteArray? {
+        val s = (v as? String)?.trim() ?: return null
+        return runCatching { Base64.getMimeDecoder().decode(s) }.getOrNull()
+            ?: runCatching { Base64.getUrlDecoder().decode(s) }.getOrNull()
     }
 
     private val MODES = mapOf(
@@ -187,8 +202,11 @@ object DjiMapper {
         }
         progress?.onProgress(0, 1f)
         // Неверные ключи AES: большинство записей не расшифровывается (редкие «успехи» — мусор).
-        if (osdCount == 0 || osdCount < osdTotal / 2) throw LogParseException(
-            if (log.version >= 13) "Не удалось расшифровать записи DJI: ключи не подходят к этому логу" else "В логе DJI нет записей OSD",
+        val aesBad = log.version >= 13 && log.aesTotal > 0 && log.aesFailed * 2 > log.aesTotal
+        if (aesBad || osdCount == 0 || osdCount < osdTotal / 2) throw LogParseException(
+            if (log.version >= 13) "Не удалось расшифровать записи DJI: ключи не подходят к этому логу. " +
+                "Расшифровано ${log.aesTotal - log.aesFailed} из ${log.aesTotal} записей, OSD: $osdCount из $osdTotal. ${log.diagnostics()}"
+            else "В логе DJI нет записей OSD",
         )
         // SmartBattery — только если других источников напряжения нет.
         cols.remove("smartVolt")?.let { if (Ch.VOLT !in cols) cols[Ch.VOLT] = it }
