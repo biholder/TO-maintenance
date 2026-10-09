@@ -8,6 +8,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -90,16 +93,19 @@ fun PrimaryButton(
     height: Dp = 52.dp,
     enabled: Boolean = true,
     marks: Boolean = true,
+    cornerRadius: Dp = 0.dp,
     leading: (@Composable () -> Unit)? = null,
 ) {
     val src = remember { MutableInteractionSource() }
     val pressed by src.collectIsPressedAsState()
+    val shape = RoundedCornerShape(cornerRadius)
     Row(
         modifier
             .then(if (marks) Modifier.regMarks(tk.mk) else Modifier)
             .height(height)
             .alpha(if (enabled) 1f else 0.45f)
-            .background(if (pressed) tk.act else tk.ac)
+            .clip(shape)
+            .background(if (pressed) tk.act else tk.ac, shape)
             .clickable(src, null, enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 18.dp),
         horizontalArrangement = Arrangement.Center,
@@ -208,9 +214,10 @@ fun ValueGrid(columns: Int, cells: List<@Composable () -> Unit>, modifier: Modif
         drawLine(dv, Offset(w / 2, 0f), Offset(w / 2, size.height), w)
     }) {
         cells.chunked(columns).forEach { row ->
-            Row(Modifier.fillMaxWidth()) {
+            // Все ячейки строки — одной высоты, иначе рамки соседних ячеек не совпадают.
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                 row.forEach { cell ->
-                    Box(Modifier.weight(1f).cellBorder(dv)) { cell() }
+                    Box(Modifier.weight(1f).fillMaxHeight().cellBorder(dv)) { cell() }
                 }
                 repeat(columns - row.size) { Box(Modifier.weight(1f)) }
             }

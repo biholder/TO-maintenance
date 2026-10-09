@@ -40,7 +40,6 @@ import app.flightlog.reader.ui.Chip
 import app.flightlog.reader.ui.Icon
 import app.flightlog.reader.ui.IconBox
 import app.flightlog.reader.ui.Icons
-import app.flightlog.reader.ui.Kicker
 import app.flightlog.reader.ui.PrimaryButton
 import app.flightlog.reader.ui.SecondaryButton
 import app.flightlog.reader.ui.StatusDot
@@ -70,8 +69,7 @@ fun LibraryScreen(vm: AppViewModel) {
         // Шапка.
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 12.dp), verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
-                Kicker("Бортовые журналы")
-                T("Полёты", Type.h1, modifier = Modifier.padding(top = 4.dp))
+                T("Полёты", Type.h1)
                 T(
                     if (all.isEmpty()) "Логов пока нет"
                     else "${all.size} ${plural(all.size, "лог", "лога", "логов")} · ${durationText(total)} налёта",
@@ -122,6 +120,7 @@ fun LibraryScreen(vm: AppViewModel) {
                 }
             } else {
                 PrimaryButton("Импортировать лог", { vm.sheet = true }, Modifier.fillMaxWidth(),
+                    marks = false, cornerRadius = 12.dp,
                     leading = { Icon(Icons.Upload, tk.onac, size = 20.dp) })
             }
         }
