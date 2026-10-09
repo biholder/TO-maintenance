@@ -1,4 +1,4 @@
-# Полётные логи — просмотр логов БВС
+# PLOV — просмотр логов БВС (HTML-прототип)
 
 Android-приложение для чтения и анализа полётных логов беспилотников. Интерфейс — интерактивный прототип: данные демонстрационные, реальные парсеры форматов ещё не подключены.
 
@@ -35,7 +35,7 @@ app/src/main/java/.../MainActivity.kt — WebView-обёртка
 ## Сборка
 
 APK собирается автоматически GitHub Actions (`.github/workflows/build-apk.yml` в корне репозитория) при push в `main`, затрагивающем `flight-log-reader/android/`, или вручную (Run workflow):
-**Actions → Build APK → последний запуск → Artifacts → flight-log-reader-debug**.
+**Actions → Build APK → последний запуск → Artifacts → plov-prototype-debug**.
 
 При push тега вида `v0.1.0` APK прикрепляется к релизу.
 

@@ -44,7 +44,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: flight-log-reader-debug
+          name: plov-debug
           path: flight-log-reader/native/app/build/outputs/apk/debug/*.apk
 
       - name: Publish release (on tag)
@@ -76,5 +76,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: flight-log-reader-prototype-debug
+          name: plov-prototype-debug
           path: flight-log-reader/android/app/build/outputs/apk/debug/*.apk

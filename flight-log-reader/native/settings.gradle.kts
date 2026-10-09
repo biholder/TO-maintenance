@@ -14,7 +14,7 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "FlightLogReader"
+rootProject.name = "PLOV"
 
 include(":core")
 if (hasAndroidSdk) include(":app")

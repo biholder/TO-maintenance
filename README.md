@@ -62,7 +62,7 @@ Linux/macOS в Windows.
 уже указан флаг `--windowed`; если наоборот нужно видеть окно консоли для
 отладки ошибок запуска, уберите этот флаг и пересоберите.
 
-## Полётные логи (Android, прототип)
+## PLOV — анализ полётных логов (Android)
 
 В папке `flight-log-reader/` — отдельный проект из Claude Design: Android-приложение
 для чтения и анализа полётных логов БВС (ArduPilot, PX4, DJI, Betaflight/INAV).
@@ -78,5 +78,5 @@ Linux/macOS в Windows.
   `flight-log-reader/android/app/src/main/assets/index.html`.
 
 APK собирает GitHub Actions (workflow «Build APK»): **Actions → Build APK →
-Artifacts → flight-log-reader-debug** (нативное приложение) и
-`flight-log-reader-prototype-debug` (прототип).
+Artifacts → plov-debug** (нативное приложение) и
+`plov-prototype-debug` (прототип).

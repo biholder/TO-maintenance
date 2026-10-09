@@ -59,7 +59,7 @@ object Export {
         val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ROOT).apply { timeZone = TimeZone.getTimeZone("UTC") }
         val sb = StringBuilder()
         sb.append("""<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Flight Log Reader" xmlns="http://www.topografix.com/GPX/1/1">
+<gpx version="1.1" creator="PLOV" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>
     <name>${xml(log.fileName)}</name>
     <trkseg>

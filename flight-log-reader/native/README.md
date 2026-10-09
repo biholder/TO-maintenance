@@ -1,4 +1,4 @@
-# Полётные логи — нативное Android-приложение
+# PLOV — нативное Android-приложение для анализа полётных логов
 
 Kotlin + Jetpack Compose. Реализация дизайна из `../design/` (стиль Industry:
 Barlow / Barlow Condensed, квадратные углы, волосяные границы, «+»-метки).
@@ -46,7 +46,7 @@ tools/make_sample_logs.py  генератор демо- и тестовых ло
 ## Сборка
 
 APK собирает GitHub Actions (workflow «Build APK», job «Native app»):
-**Actions → Build APK → Artifacts → flight-log-reader-debug**.
+**Actions → Build APK → Artifacts → plov-debug**.
 
 Локально (JDK 17, Android SDK):
 

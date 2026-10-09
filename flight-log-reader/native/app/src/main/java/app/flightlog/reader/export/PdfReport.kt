@@ -67,7 +67,7 @@ object PdfReport {
         val u = UnitFmt(units)
         x.newPage()
         // Заголовок.
-        x.c!!.drawText("ОТЧЁТ О ПОЛЁТЕ", M, x.y + 10, paint(MU, 9f, true).apply { letterSpacing = 0.16f })
+        x.c!!.drawText("PLOV · ОТЧЁТ О ПОЛЁТЕ", M, x.y + 10, paint(MU, 9f, true).apply { letterSpacing = 0.16f })
         x.c!!.drawText(log.fileName, M, x.y + 36, paint(TX, 24f, true))
         x.c!!.drawText("${log.vehicle.autopilot} ${log.format.ext} · ${dateTimeFull(log.startUtcMillis)}", M, x.y + 54, paint(MU, 10f))
         x.y += 72
