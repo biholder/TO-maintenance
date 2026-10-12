@@ -16,10 +16,27 @@ android {
         versionName = "0.3.0"
     }
 
+    // Постоянный ключ подписи из секретов CI (PLOV_KEYSTORE_*): иначе каждая сборка получает
+    // новый отладочный ключ, и Android не ставит обновление поверх («конфликтует с другим пакетом»).
+    // Без секретов (локально, в форках) сборка подписывается отладочным ключом, как раньше.
+    val plovKeystore = System.getenv("PLOV_KEYSTORE_PATH")?.let { file(it) }?.takeIf { it.exists() }
+    signingConfigs {
+        if (plovKeystore != null) create("plov") {
+            storeFile = plovKeystore
+            storePassword = System.getenv("PLOV_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("PLOV_KEY_ALIAS") ?: "plov"
+            keyPassword = System.getenv("PLOV_KEYSTORE_PASSWORD")
+        }
+    }
+    val signing = signingConfigs.findByName("plov") ?: signingConfigs.getByName("debug")
+
     buildTypes {
+        debug {
+            signingConfig = signing
+        }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signing
         }
     }
     compileOptions {

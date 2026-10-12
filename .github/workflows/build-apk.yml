@@ -32,8 +32,27 @@ jobs:
       - name: Core tests
         run: ./gradlew :core:test --no-daemon
 
+      # Постоянный ключ подписи из секретов репозитория — обновления ставятся поверх.
+      - name: Restore signing key
+        env:
+          PLOV_KEYSTORE_BASE64: ${{ secrets.PLOV_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$PLOV_KEYSTORE_BASE64" ]; then
+            echo "$PLOV_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/plov-signing.keystore"
+            echo "PLOV_KEYSTORE_PATH=$RUNNER_TEMP/plov-signing.keystore" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Секрет PLOV_KEYSTORE_BASE64 не задан — APK подписан временным отладочным ключом и не встанет поверх других сборок"
+          fi
+
       - name: Build debug APK
+        env:
+          PLOV_KEYSTORE_PASSWORD: ${{ secrets.PLOV_KEYSTORE_PASSWORD }}
         run: ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Check signing certificate
+        run: |
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$apk" | grep -m2 "certificate DN\|SHA-256" || true
 
       - uses: actions/upload-artifact@v4
         if: always()
