@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -38,7 +40,8 @@ import app.flightlog.reader.ui.SecondaryButton
 import app.flightlog.reader.ui.T
 import app.flightlog.reader.ui.Type
 import app.flightlog.reader.ui.hairline
-import app.flightlog.reader.ui.regMarks
+import app.flightlog.reader.ui.Radius
+import app.flightlog.reader.ui.card
 import app.flightlog.reader.ui.tk
 import kotlin.math.roundToInt
 
@@ -55,15 +58,15 @@ fun DecodeScreen(vm: AppViewModel, share: (java.io.File, String) -> Unit) {
             T("${if (d.sizeBytes > 0) LogReader.sizeText(d.sizeBytes) else "…"} · ${d.source}", Type.body(14.sp), tk.mu)
 
             // Блок прогресса с метками регистрации.
-            Column(Modifier.padding(top = 24.dp).fillMaxWidth().regMarks(tk.mk).hairline(tk.dv).padding(16.dp)) {
+            Column(Modifier.padding(top = 24.dp).fillMaxWidth().hairline(tk.dv, radius = Radius.L).padding(16.dp)) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     T("${(d.progress * 100).roundToInt()}", Type.cond(72.sp).copy(lineHeight = 72.sp))
                     T("%", Type.cond(28.sp), tk.mu, Modifier.padding(bottom = 10.dp, start = 2.dp))
                     Box(Modifier.weight(1f))
                     T("${num(d.mbPerSec, 1)} МБ/с", Type.cond(16.sp, 1.sp), tk.mu, Modifier.padding(bottom = 12.dp))
                 }
-                Box(Modifier.fillMaxWidth().height(6.dp).background(tk.sf2)) {
-                    Box(Modifier.fillMaxWidth(d.progress.coerceIn(0f, 1f)).height(6.dp).background(tk.ac))
+                Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(tk.sf2)) {
+                    Box(Modifier.fillMaxWidth(d.progress.coerceIn(0f, 1f)).height(6.dp).background(tk.ac, RoundedCornerShape(3.dp)))
                 }
             }
 
@@ -78,9 +81,9 @@ fun DecodeScreen(vm: AppViewModel, share: (java.io.File, String) -> Unit) {
                         Box(
                             Modifier.size(18.dp).then(
                                 when (state) {
-                                    2 -> Modifier.background(tk.ac)
-                                    1 -> Modifier.border(2.dp, tk.ac)
-                                    else -> Modifier.border(1.5.dp, tk.mk)
+                                    2 -> Modifier.background(tk.ac, RoundedCornerShape(5.dp))
+                                    1 -> Modifier.border(2.dp, tk.ac, RoundedCornerShape(5.dp))
+                                    else -> Modifier.border(1.5.dp, tk.mk, RoundedCornerShape(5.dp))
                                 },
                             ),
                             contentAlignment = Alignment.Center,
@@ -94,7 +97,7 @@ fun DecodeScreen(vm: AppViewModel, share: (java.io.File, String) -> Unit) {
 
             d.djiKeyVersion?.let { v -> DjiKeyBlock(vm, v, d.djiBusy, d.djiStatus) }
             d.error?.let { err ->
-                Column(Modifier.padding(top = 24.dp).fillMaxWidth().background(tk.wr1).padding(14.dp)) {
+                Column(Modifier.padding(top = 24.dp).fillMaxWidth().card(tk.wr1).padding(14.dp)) {
                     Kicker("Ошибка разбора", color = tk.cr)
                     // Текст можно выделить и скопировать — удобно прислать разработчику.
                     androidx.compose.foundation.text.selection.SelectionContainer {
@@ -110,7 +113,7 @@ fun DecodeScreen(vm: AppViewModel, share: (java.io.File, String) -> Unit) {
                 }
             }
             if (d.done) {
-                Column(Modifier.padding(top = 24.dp).fillMaxWidth().background(tk.ac1).hairline(tk.ac).padding(14.dp)) {
+                Column(Modifier.padding(top = 24.dp).fillMaxWidth().card(tk.ac1, tk.ac).padding(14.dp)) {
                     Kicker("Формат определён", color = tk.act)
                     T(d.formatTitle, Type.body(15.sp, FontWeight.Medium), modifier = Modifier.padding(top = 4.dp))
                 }
@@ -132,7 +135,7 @@ fun DecodeScreen(vm: AppViewModel, share: (java.io.File, String) -> Unit) {
 @Composable
 private fun DjiKeyBlock(vm: AppViewModel, version: Int, busy: Boolean, status: String?) {
     var key by remember { mutableStateOf(vm.djiApiKey) }
-    Column(Modifier.padding(top = 24.dp).fillMaxWidth().background(tk.ac1).hairline(tk.ac).padding(14.dp)) {
+    Column(Modifier.padding(top = 24.dp).fillMaxWidth().card(tk.ac1, tk.ac).padding(14.dp)) {
         Kicker("Нужен ключ DJI", color = tk.act)
         T("Лог DJI версии $version зашифрован. Ключи расшифровки к каждому файлу выдаёт только DJI — " +
             "по бесплатному API-ключу разработчика. Получить ключи нужно один раз: они сохранятся рядом с логом.",
@@ -140,7 +143,7 @@ private fun DjiKeyBlock(vm: AppViewModel, version: Int, busy: Boolean, status: S
         T("Где взять API-ключ: developer.dji.com → войти → Create App → тип «Open API» → активировать по письму → " +
             "в карточке приложения скопировать SDK key.",
             Type.body(13.sp), tk.mu, Modifier.padding(top = 8.dp))
-        Box(Modifier.padding(top = 12.dp).fillMaxWidth().height(46.dp).background(tk.bg).hairline(tk.dv).padding(horizontal = 12.dp),
+        Box(Modifier.padding(top = 12.dp).fillMaxWidth().height(46.dp).card(tk.bg, tk.dv, Radius.S + 2.dp).padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart) {
             if (key.isEmpty()) T("API-ключ DJI (SDK key)", Type.body(15.sp), tk.mu)
             BasicTextField(

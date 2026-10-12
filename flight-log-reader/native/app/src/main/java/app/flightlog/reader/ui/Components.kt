@@ -70,7 +70,25 @@ fun Modifier.regMarks(color: Color): Modifier = drawWithContent {
     }
 }
 
-fun Modifier.hairline(color: Color, width: Dp = 1.dp) = border(width, color)
+/** Радиусы скругления интерфейса. */
+object Radius {
+    val L = 16.dp
+    val M = 12.dp
+    val S = 8.dp
+    val XS = 6.dp
+}
+
+/** Рамка 1px со скруглёнными углами; содержимое обрезается по той же форме. */
+fun Modifier.hairline(color: Color, width: Dp = 1.dp, radius: Dp = Radius.M): Modifier {
+    val shape = RoundedCornerShape(radius)
+    return clip(shape).border(width, color, shape)
+}
+
+/** Скруглённая карточка: фон и, при необходимости, рамка. */
+fun Modifier.card(bg: Color, border: Color? = null, radius: Dp = Radius.M): Modifier {
+    val shape = RoundedCornerShape(radius)
+    return clip(shape).background(bg, shape).then(if (border != null) Modifier.border(1.dp, border, shape) else Modifier)
+}
 
 /** Нижняя граница 1px. */
 fun Modifier.bottomRule(color: Color) = drawWithContent {
@@ -92,8 +110,8 @@ fun PrimaryButton(
     modifier: Modifier = Modifier,
     height: Dp = 52.dp,
     enabled: Boolean = true,
-    marks: Boolean = true,
-    cornerRadius: Dp = 0.dp,
+    marks: Boolean = false,
+    cornerRadius: Dp = Radius.M,
     leading: (@Composable () -> Unit)? = null,
 ) {
     val src = remember { MutableInteractionSource() }
@@ -128,7 +146,7 @@ fun SecondaryButton(
     val src = remember { MutableInteractionSource() }
     val pressed by src.collectIsPressedAsState()
     Row(
-        modifier.height(height).hairline(tk.dv).background(if (pressed) tk.sf else Color.Transparent)
+        modifier.height(height).hairline(tk.dv).background(if (pressed) tk.sf else Color.Transparent, RoundedCornerShape(Radius.M))
             .clickable(src, null, role = Role.Button, onClick = onClick).padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
@@ -150,8 +168,8 @@ fun IconBox(
 ) {
     Box(
         modifier.size(44.dp)
-            .then(if (bordered) Modifier.hairline(tk.dv) else Modifier)
-            .background(if (selected) tk.tx else Color.Transparent)
+            .then(if (bordered) Modifier.hairline(tk.dv) else Modifier.clip(RoundedCornerShape(Radius.M)))
+            .background(if (selected) tk.tx else Color.Transparent, RoundedCornerShape(Radius.M))
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { content() }
@@ -160,8 +178,8 @@ fun IconBox(
 @Composable
 fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
-        modifier.heightIn(min = 34.dp).hairline(if (selected) tk.tx else tk.dv)
-            .background(if (selected) tk.tx else Color.Transparent)
+        modifier.heightIn(min = 34.dp).hairline(if (selected) tk.tx else tk.dv, radius = 17.dp)
+            .background(if (selected) tk.tx else Color.Transparent, RoundedCornerShape(17.dp))
             .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -172,11 +190,11 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
 /** Сегмент-контрол: равные ячейки в рамке 1px, выбранная — заливка tx. */
 @Composable
 fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth().height(36.dp).hairline(tk.dv)) {
+    Row(modifier.fillMaxWidth().height(38.dp).hairline(tk.dv, radius = Radius.M).padding(3.dp)) {
         options.forEachIndexed { i, o ->
             Box(
-                Modifier.weight(1f).fillMaxHeight()
-                    .background(if (i == selected) tk.tx else Color.Transparent)
+                Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(Radius.S))
+                    .background(if (i == selected) tk.tx else Color.Transparent, RoundedCornerShape(Radius.S))
                     .clickable(role = Role.Tab) { onSelect(i) },
                 contentAlignment = Alignment.Center,
             ) { T(o.uppercase(), Type.cond(13.sp, 1.sp), if (i == selected) tk.bg else tk.tx, maxLines = 1) }
@@ -189,7 +207,7 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, mod
 fun CheckBox(checked: Boolean, modifier: Modifier = Modifier, size: Dp = 22.dp) {
     Box(
         modifier.size(size)
-            .then(if (checked) Modifier.background(tk.ac) else Modifier.border(1.5.dp, tk.mk)),
+            .then(if (checked) Modifier.background(tk.ac, RoundedCornerShape(Radius.XS)) else Modifier.border(1.5.dp, tk.mk, RoundedCornerShape(Radius.XS))),
         contentAlignment = Alignment.Center,
     ) { if (checked) T("✓", Type.body(14.sp, FontWeight.SemiBold), tk.onac) }
 }
@@ -203,33 +221,19 @@ fun Radio(selected: Boolean, modifier: Modifier = Modifier) {
     ) { if (selected) Box(Modifier.size(10.dp).background(tk.ac, CircleShape)) }
 }
 
-/** Сетка значений: волосяные границы между ячейками. */
+/** Сетка значений: отдельные скруглённые плитки, в ряду — одной высоты. */
 @Composable
 fun ValueGrid(columns: Int, cells: List<@Composable () -> Unit>, modifier: Modifier = Modifier) {
-    val dv = tk.dv
-    Column(modifier.fillMaxWidth().drawWithContent {
-        drawContent()
-        val w = 1.dp.toPx()
-        drawLine(dv, Offset(0f, w / 2), Offset(size.width, w / 2), w)
-        drawLine(dv, Offset(w / 2, 0f), Offset(w / 2, size.height), w)
-    }) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         cells.chunked(columns).forEach { row ->
-            // Все ячейки строки — одной высоты, иначе рамки соседних ячеек не совпадают.
-            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { cell ->
-                    Box(Modifier.weight(1f).fillMaxHeight().cellBorder(dv)) { cell() }
+                    Box(Modifier.weight(1f).fillMaxHeight().card(tk.sf, tk.dv)) { cell() }
                 }
                 repeat(columns - row.size) { Box(Modifier.weight(1f)) }
             }
         }
     }
-}
-
-private fun Modifier.cellBorder(dv: Color) = drawWithContent {
-    drawContent()
-    val w = 1.dp.toPx()
-    drawLine(dv, Offset(size.width - w / 2, 0f), Offset(size.width - w / 2, size.height), w)
-    drawLine(dv, Offset(0f, size.height - w / 2), Offset(size.width, size.height - w / 2), w)
 }
 
 /** Ячейка «подпись + крупное число». */
@@ -246,4 +250,4 @@ fun Stat(label: String, value: String, unit: String = "", color: Color = tk.tx, 
 
 /** Квадратный индикатор статуса 7px + текст. */
 @Composable
-fun StatusDot(color: Color, size: Dp = 7.dp) = Box(Modifier.size(size).background(color))
+fun StatusDot(color: Color, size: Dp = 7.dp) = Box(Modifier.size(size).background(color, RoundedCornerShape(2.dp)))

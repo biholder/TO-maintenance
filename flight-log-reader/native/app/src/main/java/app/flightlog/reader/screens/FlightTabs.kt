@@ -23,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -70,7 +71,8 @@ import app.flightlog.reader.ui.Type
 import app.flightlog.reader.ui.ValueGrid
 import app.flightlog.reader.ui.bottomRule
 import app.flightlog.reader.ui.hairline
-import app.flightlog.reader.ui.regMarks
+import app.flightlog.reader.ui.Radius
+import app.flightlog.reader.ui.card
 import app.flightlog.reader.ui.tk
 import kotlin.math.roundToInt
 
@@ -95,11 +97,11 @@ fun SummaryTab(vm: AppViewModel, p: LogReader.Parsed) {
                 val crit = i.severity == Severity.CRITICAL
                 val col = if (crit) tk.cr else tk.wr
                 Column(
-                    Modifier.fillMaxWidth().background(if (crit) tk.cr.copy(alpha = 0.10f) else tk.wr1)
+                    Modifier.fillMaxWidth().card(if (crit) tk.cr.copy(alpha = 0.10f) else tk.wr1)
                         .clickable { vm.jumpTo(i.start, i.channel) }.padding(14.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.hairline(col).padding(horizontal = 6.dp, vertical = 1.dp)) {
+                        Box(Modifier.hairline(col, radius = 6.dp).padding(horizontal = 6.dp, vertical = 1.dp)) {
                             T(if (crit) "КРИТИЧНО" else "ПРЕДУПР.", Type.cond(12.sp, 1.sp), col)
                         }
                         T("${clock(i.start)}–${clock(i.end)}", Type.cond(14.sp), tk.mu, Modifier.padding(start = 10.dp))
@@ -178,10 +180,10 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
     val t = vm.tSec
     val cur = tr.indexAt(t)
     val warnTimes = remember(p) { p.analysis.issues.map { it.start } }
-    val mk = tk.mk; val grid = tk.grid; val tx = tk.tx; val wr = tk.wr; val sf = tk.sf; val bg = tk.bg
+    val grid = tk.grid; val tx = tk.tx; val wr = tk.wr; val sf = tk.sf; val bg = tk.bg
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Segmented(TrackBy.entries.map { it.title }, vm.trackBy.ordinal, { vm.trackBy = TrackBy.entries[it] })
-        Box(Modifier.padding(top = 16.dp).fillMaxWidth().aspectRatio(1f).regMarks(mk).background(sf).hairline(tk.dv)) {
+        Box(Modifier.padding(top = 16.dp).fillMaxWidth().aspectRatio(1f).card(sf, tk.dv, Radius.L)) {
             Canvas(
                 Modifier.fillMaxSize().padding(14.dp).pointerInput(p) {
                     detectTapGestures { pos ->
@@ -222,7 +224,8 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
                 // Дом.
                 val (hx, hy) = g.project(0)
                 val hs = 18.dp.toPx()
-                drawRect(tx, Offset(hx - hs / 2, hy - hs / 2), Size(hs, hs))
+                drawRoundRect(tx, Offset(hx - hs / 2, hy - hs / 2), Size(hs, hs),
+                    androidx.compose.ui.geometry.CornerRadius(5.dp.toPx(), 5.dp.toPx()))
                 // Текущая позиция.
                 if (cur >= 0) {
                     val (cx, cy) = g.project(cur)
@@ -245,7 +248,7 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
                 TrackBy.BATTERY -> { v -> num(v, 1) }
             }
             T(conv(lo), Type.body(12.sp), tk.mu)
-            Box(Modifier.padding(horizontal = 8.dp).weight(1f).height(6.dp).background(Brush.horizontalGradient(ramp)))
+            Box(Modifier.padding(horizontal = 8.dp).weight(1f).height(6.dp).background(Brush.horizontalGradient(ramp), RoundedCornerShape(3.dp)))
             T("${conv(hi)} $unitText", Type.body(12.sp), tk.mu)
         }
         // Показания в текущий момент.
@@ -403,7 +406,7 @@ fun ParamsTab(vm: AppViewModel, p: LogReader.Parsed) {
     val list = all.filter { (!vm.onlyChanged || it.changed) && (q.isEmpty() || it.name.contains(q, ignoreCase = true)) }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(16.dp)) {
-            Row(Modifier.fillMaxWidth().height(46.dp).background(tk.sf).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().height(46.dp).card(tk.sf).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Search, tk.mu, size = 18.dp)
                 Box(Modifier.weight(1f).padding(start = 10.dp)) {
                     if (vm.paramQuery.isEmpty()) T("Поиск параметра", Type.body(15.sp), tk.mu)

@@ -45,6 +45,7 @@ object Icons {
     val Share = icon("share", "M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8", "M16 6l-4-4-4 4", "M12 2v13")
     val ChevronRight = icon("chevron-right", "m9 18 6-6-6-6")
     val Trash = icon("trash", "M3 6h18", "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6", "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2")
+    val MoreVertical = icon("ellipsis-vertical", circle(12f, 5f, 1f), circle(12f, 12f, 1f), circle(12f, 19f, 1f))
     val Drone = icon("drone", circle(6f, 6f, 3f), circle(18f, 6f, 3f), circle(6f, 18f, 3f), circle(18f, 18f, 3f),
         "M8.5 8.5 10 10", "M15.5 8.5 14 10", "M8.5 15.5 10 14", "M15.5 15.5 14 14", "M10 10h4v4h-4Z")
 }

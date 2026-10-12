@@ -2,6 +2,11 @@ package app.flightlog.reader.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import app.flightlog.reader.ui.card
+import app.flightlog.reader.ui.Radius
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -64,7 +69,6 @@ fun LibraryScreen(vm: AppViewModel) {
     val all = vm.entries
     val list = all.filter { vm.srcFilter == null || it.autopilot == vm.srcFilter }
     val total = all.sumOf { it.flightTime.toDouble() }.toFloat()
-    val dark = tk.dark
     Column(Modifier.fillMaxSize()) {
         // Шапка.
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 12.dp), verticalAlignment = Alignment.Top) {
@@ -76,15 +80,7 @@ fun LibraryScreen(vm: AppViewModel) {
                     Type.body(14.sp), tk.mu, Modifier.padding(top = 4.dp),
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconBox(onClick = { vm.units = if (vm.units == Units.METRIC) Units.IMPERIAL else Units.METRIC }) {
-                    T(if (vm.units == Units.METRIC) "М" else "FT", Type.cond(15.sp, 1.sp))
-                }
-                IconBox(onClick = { vm.themeOverride = !dark }) { Icon(if (dark) Icons.Moon else Icons.Sun, tk.tx) }
-                IconBox(onClick = { vm.compareMode = !vm.compareMode; if (!vm.compareMode) vm.picked.clear() }, selected = vm.compareMode) {
-                    Icon(Icons.Columns, if (vm.compareMode) tk.bg else tk.tx)
-                }
-            }
+            OverflowMenu(vm)
         }
 
         // Чипы источника.
@@ -116,6 +112,8 @@ fun LibraryScreen(vm: AppViewModel) {
                         T("Выберите 2 полёта", Type.body(15.sp, FontWeight.Medium))
                         T("${vm.picked.size} из 2", Type.body(13.sp), tk.mu)
                     }
+                    SecondaryButton("Отмена", { vm.compareMode = false; vm.picked.clear() }, height = 52.dp)
+                    Box(Modifier.width(8.dp))
                     PrimaryButton("Сравнить", { vm.startCompare() }, height = 52.dp, enabled = vm.picked.size == 2)
                 }
             } else {
@@ -160,7 +158,7 @@ private fun LogRow(vm: AppViewModel, e: LogEntry) {
             if (vm.compareMode) { CheckBox(picked); Box(Modifier.width(14.dp)) }
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.hairline(tk.dv).padding(horizontal = 5.dp, vertical = 1.dp)) {
+                    Box(Modifier.hairline(tk.dv, radius = 6.dp).padding(horizontal = 5.dp, vertical = 1.dp)) {
                         T(".${e.format.ext}", Type.cond(12.sp, 0.5.sp), tk.act)
                     }
                     T(e.autopilot.ifEmpty { "—" }, Type.body(13.sp), tk.mu, Modifier.padding(start = 8.dp).weight(1f), maxLines = 1)
@@ -185,6 +183,59 @@ private fun LogRow(vm: AppViewModel, e: LogEntry) {
                 SecondaryButton("Удалить", { menu = false; vm.delete(e) }, Modifier.weight(1f), height = 40.dp,
                     leading = { Icon(Icons.Trash, tk.cr, size = 18.dp) })
             }
+        }
+    }
+}
+
+/** Меню «⋮»: единицы измерения, тема, сравнение полётов. */
+@Composable
+private fun OverflowMenu(vm: AppViewModel) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconBox(onClick = { open = !open }, bordered = false) { Icon(Icons.MoreVertical, tk.tx) }
+        if (open) {
+            androidx.compose.ui.window.Popup(
+                alignment = Alignment.TopEnd,
+                offset = with(androidx.compose.ui.platform.LocalDensity.current) { androidx.compose.ui.unit.IntOffset(0, 48.dp.roundToPx()) },
+                onDismissRequest = { open = false },
+                properties = androidx.compose.ui.window.PopupProperties(focusable = true),
+            ) {
+                Column(
+                    Modifier.width(250.dp)
+                        .shadow(10.dp, RoundedCornerShape(Radius.M))
+                        .card(tk.bg, tk.dv)
+                        .padding(vertical = 6.dp),
+                ) {
+                    MenuItem(
+                        if (vm.units == Units.METRIC) "Единицы: метрические" else "Единицы: имперские",
+                        if (vm.units == Units.METRIC) "м, м/с, км" else "ft, mph, mi",
+                    ) { vm.units = if (vm.units == Units.METRIC) Units.IMPERIAL else Units.METRIC }
+                    MenuItem(
+                        "Тема: " + when (vm.themeOverride) { null -> "как в системе"; false -> "светлая"; true -> "тёмная" },
+                        "Нажмите, чтобы переключить",
+                        icon = if (tk.dark) Icons.Moon else Icons.Sun,
+                    ) { vm.themeOverride = when (vm.themeOverride) { null -> false; false -> true; true -> null } }
+                    MenuItem("Сравнить полёты", "Выбрать два полёта из списка", icon = Icons.Columns) {
+                        vm.compareMode = true
+                        open = false
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MenuItem(title: String, sub: String, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (icon != null) { Icon(icon, tk.tx, size = 20.dp); Box(Modifier.width(12.dp)) }
+        else Box(Modifier.width(32.dp))
+        Column {
+            T(title, Type.body(15.sp, FontWeight.Medium))
+            T(sub, Type.body(12.5.sp), tk.mu)
         }
     }
 }

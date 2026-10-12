@@ -41,7 +41,7 @@ import app.flightlog.reader.ui.T
 import app.flightlog.reader.ui.Type
 import app.flightlog.reader.ui.bottomRule
 import app.flightlog.reader.ui.hairline
-import app.flightlog.reader.ui.regMarks
+import app.flightlog.reader.ui.Radius
 import app.flightlog.reader.ui.tk
 
 private val CMP = listOf("Батарея" to Ch.VOLT, "Вибрации" to Ch.VIBE_Z, "Ток" to Ch.CURR, "Высота" to Ch.ALT)
@@ -137,7 +137,7 @@ private fun OverlayChart(a: LogReader.Parsed, b: LogReader.Parsed, key: String) 
     val hi = listOfNotNull(sa?.max, sb?.max, threshold).maxOrNull() ?: 1f
     val da = remember(a, key) { sa?.let { shifted(it, a.log.armTime ?: 0f, span, lo, hi) } }
     val db = remember(b, key) { sb?.let { shifted(it, b.log.armTime ?: 0f, span, lo, hi) } }
-    Box(Modifier.padding(top = 16.dp).fillMaxWidth().regMarks(tk.mk).hairline(tk.dv).padding(10.dp)) {
+    Box(Modifier.padding(top = 16.dp).fillMaxWidth().hairline(tk.dv, radius = Radius.L).padding(10.dp)) {
         Canvas(Modifier.fillMaxWidth().height(150.dp)) {
             drawGrid(grid, 20.dp.toPx())
             db?.let { drawSeries(it, mu, null, 1.3.dp.toPx(), dash = true) }

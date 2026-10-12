@@ -39,6 +39,7 @@ import app.flightlog.reader.ui.SecondaryButton
 import app.flightlog.reader.ui.T
 import app.flightlog.reader.ui.Type
 import app.flightlog.reader.ui.bottomRule
+import app.flightlog.reader.ui.card
 import app.flightlog.reader.ui.hairline
 import app.flightlog.reader.ui.tk
 import app.flightlog.reader.ui.topRule
@@ -104,7 +105,7 @@ fun ExportScreen(vm: AppViewModel, share: (File, String) -> Unit) {
 @Composable
 private fun Thumbnail(sections: Set<PdfSection>) {
     val tx = tk.tx; val mu = tk.mu; val ac = tk.ac; val dv = tk.dv; val sf = tk.sf
-    Box(Modifier.width(118.dp).height(167.dp).hairline(dv).background(if (tk.dark) sf else Color.White)) {
+    Box(Modifier.width(118.dp).height(167.dp).card(if (tk.dark) sf else Color.White, dv, 8.dp)) {
         Canvas(Modifier.fillMaxSize().padding(10.dp)) {
             var y = 0f
             val w = size.width

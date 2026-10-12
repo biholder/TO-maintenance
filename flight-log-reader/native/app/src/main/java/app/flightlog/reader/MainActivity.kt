@@ -103,7 +103,7 @@ private fun Root(vm: AppViewModel, share: (File, String) -> Unit) {
         if (vm.sheet) ImportSheet(vm)
         vm.toast?.let { msg ->
             Box(Modifier.fillMaxSize().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 96.dp), contentAlignment = Alignment.BottomCenter) {
-                Box(Modifier.background(tk.tx).padding(horizontal = 16.dp, vertical = 12.dp)) {
+                Box(Modifier.background(tk.tx, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 12.dp)) {
                     T(msg, Type.body(14.sp, androidx.compose.ui.text.font.FontWeight.Medium), tk.bg)
                 }
             }

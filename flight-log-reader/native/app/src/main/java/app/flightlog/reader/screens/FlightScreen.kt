@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -80,7 +82,7 @@ fun FlightScreen(vm: AppViewModel) {
                     Row(Modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
                         T(t.title.uppercase(), Type.tab, if (sel) tk.tx else tk.mu)
                         if (t == FlightTab.SUMMARY && p.analysis.issues.isNotEmpty()) {
-                            Box(Modifier.padding(start = 6.dp).background(statusColor(p.analysis.status)).padding(horizontal = 5.dp)) {
+                            Box(Modifier.padding(start = 6.dp).background(statusColor(p.analysis.status), RoundedCornerShape(6.dp)).padding(horizontal = 5.dp)) {
                                 T("${p.analysis.issues.size}", Type.cond(12.sp), tk.bg)
                             }
                         }
@@ -122,7 +124,7 @@ private fun Player(vm: AppViewModel, p: LogReader.Parsed) {
         }
         Scrubber(vm, p)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).background(tk.ac).clickable { vm.togglePlay() }, contentAlignment = Alignment.Center) {
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(tk.ac).clickable { vm.togglePlay() }, contentAlignment = Alignment.Center) {
                 Icon(if (vm.playing) Icons.Pause else Icons.Play, tk.onac, size = 20.dp)
             }
             T("${clock(t)} / ${clock(log.duration)}", Type.cond(17.sp), modifier = Modifier.padding(start = 12.dp).weight(1f))
@@ -130,11 +132,11 @@ private fun Player(vm: AppViewModel, p: LogReader.Parsed) {
             val armed = log.isArmedAt(t) || log.armTime == null
             val modeText = if (armed) mode else "DISARMED"
             val warnMode = modeText.contains("RTL") || modeText.contains("Go Home")
-            Box(Modifier.hairline(if (warnMode) tk.wr else tk.dv).padding(horizontal = 8.dp, vertical = 4.dp)) {
+            Box(Modifier.hairline(if (warnMode) tk.wr else tk.dv, radius = 8.dp).padding(horizontal = 8.dp, vertical = 4.dp)) {
                 T(modeText, Type.cond(14.sp, 1.sp), if (warnMode) tk.wr else tk.tx)
             }
             Box(Modifier.width(8.dp))
-            Box(Modifier.height(32.dp).hairline(tk.dv).clickable { vm.cycleSpeed() }.padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.height(32.dp).hairline(tk.dv, radius = 8.dp).clickable { vm.cycleSpeed() }.padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
                 T("${vm.speed}×", Type.cond(15.sp))
             }
         }
@@ -165,13 +167,16 @@ private fun Scrubber(vm: AppViewModel, p: LogReader.Parsed) {
     ) {
         val cy = size.height / 2
         val th = 4.dp.toPx()
-        drawRect(sf2, Offset(0f, cy - th / 2), Size(size.width, th))
-        drawRect(ac, Offset(0f, cy - th / 2), Size(size.width * vm.t, th))
+        val cr = androidx.compose.ui.geometry.CornerRadius(th / 2, th / 2)
+        drawRoundRect(sf2, Offset(0f, cy - th / 2), Size(size.width, th), cr)
+        drawRoundRect(ac, Offset(0f, cy - th / 2), Size(size.width * vm.t, th), cr)
         val mh = 18.dp.toPx()
         for ((x, warn) in marks) {
-            drawRect(if (warn) wr else mu.copy(alpha = 0.6f), Offset(x * size.width - 1.dp.toPx(), cy - mh / 2), Size(2.dp.toPx(), mh))
+            drawRoundRect(if (warn) wr else mu.copy(alpha = 0.6f), Offset(x * size.width - 1.dp.toPx(), cy - mh / 2), Size(2.dp.toPx(), mh),
+                androidx.compose.ui.geometry.CornerRadius(1.dp.toPx(), 1.dp.toPx()))
         }
         val tw = 14.dp.toPx(); val tH = 16.dp.toPx()
-        drawRect(tx, Offset((vm.t * size.width - tw / 2).coerceIn(0f, size.width - tw), cy - tH / 2), Size(tw, tH))
+        drawRoundRect(tx, Offset((vm.t * size.width - tw / 2).coerceIn(0f, size.width - tw), cy - tH / 2), Size(tw, tH),
+            androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(), 4.dp.toPx()))
     }
 }

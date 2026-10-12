@@ -59,12 +59,12 @@ fun ImportSheet(vm: AppViewModel) {
         contentAlignment = Alignment.BottomCenter,
     ) {
         Column(
-            Modifier.fillMaxWidth().background(tk.bg)
+            Modifier.fillMaxWidth().background(tk.bg, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                 .clickable(remember { MutableInteractionSource() }, null) {}
                 .navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
         ) {
             Box(Modifier.fillMaxWidth().padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
-                Box(Modifier.size(32.dp, 4.dp).background(tk.mk))
+                Box(Modifier.size(32.dp, 4.dp).background(tk.mk, RoundedCornerShape(2.dp)))
             }
             T("Импорт лога", Type.cond(24.sp))
             Column(Modifier.padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -89,7 +89,7 @@ private fun SourceRow(tag: String, title: String, sub: String, enabled: Boolean 
             .clickable(enabled = enabled, onClick = onClick).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(40.dp).hairline(tk.ac), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(40.dp).hairline(tk.ac, radius = 10.dp), contentAlignment = Alignment.Center) {
             T(tag, Type.cond(if (tag.length > 3) 11.sp else 13.sp, 0.5.sp), tk.act)
         }
         Box(Modifier.width(12.dp))
