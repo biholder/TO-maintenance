@@ -12,8 +12,8 @@ android {
         applicationId = "app.flightlog.reader"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.3.1"
     }
 
     // Постоянный ключ подписи из секретов CI (PLOV_KEYSTORE_*): иначе каждая сборка получает
