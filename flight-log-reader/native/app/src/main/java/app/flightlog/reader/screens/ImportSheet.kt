@@ -3,6 +3,12 @@ package app.flightlog.reader.screens
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -28,19 +34,19 @@ import app.flightlog.reader.AppViewModel
 import app.flightlog.reader.ui.Kicker
 import app.flightlog.reader.ui.T
 import app.flightlog.reader.ui.Type
-import app.flightlog.reader.ui.ValueGrid
 import app.flightlog.reader.ui.hairline
 import app.flightlog.reader.ui.tk
 
+/** Поддерживаемые форматы: сначала работающие, в конце — «скоро». */
 private val FORMATS = listOf(
     Triple(".bin", "DataFlash", "ArduPilot"),
     Triple(".log", "Текстовый", "ArduPilot / Mission Planner"),
     Triple(".tlog", "MAVLink", "ArduPilot / PX4"),
     Triple(".csv", "Таблица", "DJI (AirData), PLOV и др."),
-    Triple(".ulg", "ULog", "PX4 · скоро"),
     Triple(".txt", "FlightRecord", "DJI Fly / GO 4 / Pilot"),
+    Triple(".ulg", "ULog", "PX4 · скоро"),
     Triple(".bbl", "Blackbox", "Betaflight / INAV · скоро"),
-)
+).sortedBy { it.third.endsWith("скоро") }
 
 @Composable
 fun ImportSheet(vm: AppViewModel) {
@@ -71,15 +77,7 @@ fun ImportSheet(vm: AppViewModel) {
                 }
             }
             Kicker("Поддерживаемые форматы", Modifier.padding(top = 20.dp, bottom = 8.dp))
-            ValueGrid(3, FORMATS.map { (ext, name, src) ->
-                @Composable {
-                    Column(Modifier.padding(10.dp).alpha(if (src.endsWith("скоро")) 0.5f else 1f)) {
-                        T(ext, Type.cond(16.sp), tk.act)
-                        T(name, Type.body(13.sp, FontWeight.Medium))
-                        T(src, Type.body(12.sp), tk.mu, maxLines = 2)
-                    }
-                }
-            })
+            FormatTiles()
         }
     }
 }
@@ -98,6 +96,31 @@ private fun SourceRow(tag: String, title: String, sub: String, enabled: Boolean 
         Column(Modifier.weight(1f)) {
             T(title, Type.body(15.sp, FontWeight.SemiBold))
             T(sub, Type.body(13.sp), tk.mu)
+        }
+    }
+}
+
+/** Отдельные скруглённые плитки форматов, 4 в ряд; плитки в ряду одной высоты. */
+@Composable
+private fun FormatTiles(columns: Int = 4) {
+    val shape = RoundedCornerShape(10.dp)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FORMATS.chunked(columns).forEach { row ->
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { (ext, name, src) ->
+                    val soon = src.endsWith("скоро")
+                    Column(
+                        Modifier.weight(1f).fillMaxHeight().alpha(if (soon) 0.45f else 1f)
+                            .clip(shape).background(tk.sf).border(1.dp, tk.dv, shape)
+                            .padding(horizontal = 8.dp, vertical = 7.dp),
+                    ) {
+                        T(ext, Type.cond(14.sp), tk.act)
+                        T(name, Type.body(11.5.sp, FontWeight.Medium), maxLines = 1)
+                        T(src, Type.body(10.5.sp), tk.mu, maxLines = 2)
+                    }
+                }
+                repeat(columns - row.size) { Box(Modifier.weight(1f)) }
+            }
         }
     }
 }
