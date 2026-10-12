@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
  * в build.gradle.kts): файл отображается в память, частые сообщения прореживаются.
  */
 class LargeLogTest {
-    private class Writer(file: File) : AutoCloseable {
+    internal class Writer(file: File) : AutoCloseable {
         private val out = BufferedOutputStream(file.outputStream(), 1 shl 20)
         private val sizes = mapOf('Q' to 8, 'B' to 1, 'f' to 4, 'c' to 2, 'C' to 2, 'L' to 4, 'I' to 4, 'H' to 2, 'e' to 4, 'Z' to 64, 'N' to 16, 'n' to 4)
         private val fmts = HashMap<String, Pair<Int, String>>()

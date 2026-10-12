@@ -147,6 +147,14 @@ object Analyzer {
             if (iv.isEmpty() && battFs.isEmpty()) healthy += "Батарея"
         } else if (volt != null && battFs.isEmpty()) healthy += "Батарея"
 
+        // Несколько АКБ: разбаланс между ними.
+        val packStats = Batteries.stats(log)
+        if (packStats.size > 1) {
+            Batteries.imbalance(packStats)?.let { text ->
+                issues += Issue(Severity.WARN, "Разбаланс АКБ", log.armTime ?: 0f, log.disarmTime ?: log.duration, text, Ch.VOLT)
+            }
+        }
+
         // Прочие ошибки ERR.
         val handled = setOf(6, 7, 11)
         val errs = log.events.filter { it.source == "ERR" && !it.detail.endsWith("ECode 0") }

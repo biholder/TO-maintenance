@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.flightlog.core.Analyzer
+import app.flightlog.core.Batteries
 import app.flightlog.core.Ch
 import app.flightlog.core.EventKind
 import app.flightlog.core.Export
@@ -140,7 +141,10 @@ fun SummaryTab(vm: AppViewModel, p: LogReader.Parsed) {
             "Тип" to log.vehicle.vehicleType,
             "Рама" to log.vehicle.frame,
             "GPS" to log.vehicle.gps,
-            "Батарея" to (log.params.firstOrNull { it.name == "BATT_CAPACITY" }?.value?.let { "${it.roundToInt()} мА·ч" } ?: ""),
+            "Батарея" to listOfNotNull(
+                Batteries.packs(log).size.takeIf { it > 1 }?.let { "$it АКБ" },
+                log.params.firstOrNull { it.name == "BATT_CAPACITY" }?.value?.let { "${it.roundToInt()} мА·ч" },
+            ).joinToString(" · "),
             "Файл" to "${log.fileName} · ${LogReader.sizeText(log.fileSize)} · ${log.messageCount} сообщ.",
         ).filter { it.second.isNotEmpty() }.forEach { (k, v) ->
             Row(Modifier.fillMaxWidth().bottomRule(tk.dv).padding(vertical = 10.dp)) {
@@ -301,6 +305,7 @@ fun ChartsTab(vm: AppViewModel, p: LogReader.Parsed) {
         if (vm.channels.none { it in log.series }) vm.channels.addAll(available.take(4))
     }
     val lowV = log.params.firstOrNull { it.name == "BATT_LOW_VOLT" }?.value?.takeIf { it > 0 }
+    val packs = remember(log) { Batteries.packs(log) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -308,6 +313,7 @@ fun ChartsTab(vm: AppViewModel, p: LogReader.Parsed) {
         }
         val shown = vm.channels.filter { it in log.series }
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (packs.size > 1) item(key = "battery-compare") { BatteryCompareCard(vm, log, packs) }
             items(shown, key = { it }) { k ->
                 val s = log.series.getValue(k)
                 val vibe = k.startsWith("vibe")

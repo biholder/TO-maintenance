@@ -53,6 +53,8 @@ object TlogMapper {
         var wasArmed: Boolean? = null
         var lastMode = -1
         var startUtc: Long? = null
+        var firstBatId: Int? = null
+        val batIds = sortedSetOf<Int>()
 
         // Проход 2: сборка каналов.
         parser.scan(buffer, progress) scan@{ p ->
@@ -61,9 +63,11 @@ object TlogMapper {
             ownCount++
             lastUs = p.timeUs
             if (p.msgId in DECIMATED) {
-                val last = lastKept[p.msgId]
+                // BATTERY_STATUS прореживается отдельно для каждой АКБ (поле id).
+                val dk = if (p.msgId == TlogParser.BATTERY_STATUS) p.msgId * 256 + (p.payload.get(32).toInt() and 0xFF) else p.msgId
+                val last = lastKept[dk]
                 if (last != null && p.timeUs >= last && p.timeUs - last < MIN_GAP_US) return@scan true
-                lastKept[p.msgId] = p.timeUs
+                lastKept[dk] = p.timeUs
             }
             val b = p.payload
             val t = ts(p)
@@ -98,8 +102,25 @@ object TlogMapper {
                     if (startUtc == null && unixUs > 1_000_000_000_000_000L) startUtc = unixUs / 1000 - (t * 1000).toLong()
                 }
                 TlogParser.BATTERY_STATUS -> {
+                    val id = b.get(32).toInt() and 0xFF
                     val consumed = b.getInt(0)
-                    if (consumed >= 0) put(Ch.MAH, t, consumed.toDouble())
+                    if (firstBatId == null) firstBatId = id
+                    if (consumed >= 0 && id == firstBatId) put(Ch.MAH, t, consumed.toDouble())
+                    // Каналы каждой АКБ; лишние уберутся, если АКБ одна.
+                    val temp = b.getShort(8).toInt()
+                    var mv = 0.0
+                    for (c in 0 until 10) {
+                        val cell = b.getShort(10 + c * 2).toInt() and 0xFFFF
+                        if (cell != 0xFFFF) mv += cell
+                    }
+                    val ca = b.getShort(30).toInt()
+                    val rem = b.get(35).toInt()
+                    batIds += id
+                    if (mv > 0) put(Batteries.key(id, Batteries.Metric.VOLT), t, mv / 1000.0)
+                    if (ca >= 0) put(Batteries.key(id, Batteries.Metric.CURR), t, ca / 100.0)
+                    if (consumed >= 0) put(Batteries.key(id, Batteries.Metric.MAH), t, consumed.toDouble())
+                    if (rem >= 0) put(Batteries.key(id, Batteries.Metric.REM), t, rem.toDouble())
+                    if (temp != Short.MAX_VALUE.toInt()) put(Batteries.key(id, Batteries.Metric.TEMP), t, temp / 100.0)
                 }
                 TlogParser.GPS_RAW_INT -> {
                     val fix = b.get(28).toInt() and 0xFF
@@ -168,6 +189,11 @@ object TlogMapper {
         for ((key, m) in meta) {
             val c = cols[key] ?: continue
             series[key] = Series(key, m.first, m.second, m.third, c.first.toFloatArray(), c.second.toFloatArray())
+        }
+        if (batIds.size > 1) for (id in batIds) for (m in Batteries.Metric.entries) {
+            val c = cols[Batteries.key(id, m)] ?: continue
+            val k = Batteries.key(id, m)
+            series[k] = Series(k, "${Batteries.label(id)} · ${m.title}", "BATTERY_STATUS[$id]", m.unit, c.first.toFloatArray(), c.second.toFloatArray())
         }
         val duration = ((lastUs - t0) / 1e6).toFloat()
         return FlightLog(

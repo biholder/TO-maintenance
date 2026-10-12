@@ -51,10 +51,11 @@ object DataFlashMapper {
             if (transform != null) for (i in v.indices) v[i] = transform(v[i])
             series[key] = Series(key, label, "$msg.$col", unit, time(tab), v)
         }
-        val gpsTab = t["GPS"]?.let { g -> if (g.has("I")) filterInstance(g, "I", 0.0) else g }
-        val bat = (t["BAT"] ?: t["BAT0"] ?: t["CURR"])?.let { b -> if (b.has("Inst")) filterInstance(b, "Inst", 0.0) else b }
+        val gpsTab = t["GPS"]?.let { firstInstance(it) }
         val batName = if (t["BAT"] != null) "BAT" else if (t["BAT0"] != null) "BAT0" else "CURR"
-        val vibe = t["VIBE"]?.let { v -> if (v.has("IMU")) filterInstance(v, "IMU", 0.0) else v }
+        val batAll = t[batName]
+        val bat = batAll?.let { firstInstance(it) }
+        val vibe = t["VIBE"]?.let { firstInstance(it) }
         val ctun = t["CTUN"]
 
         if (ctun != null && ctun.has("Alt")) add(Ch.ALT, "Высота", "CTUN", "Alt", "м", ctun)
@@ -64,6 +65,37 @@ object DataFlashMapper {
         add(Ch.CURR, "Ток", batName, "Curr", "А", bat)
         add(Ch.MAH, "Израсходовано", batName, "CurrTot", "мА·ч", bat)
         add(Ch.REM, "Заряд", batName, "RemPct", "%", bat)
+        // Несколько АКБ: отдельные каналы на каждую.
+        val packs = batAll?.let { b -> instanceColumn(b)?.let { c -> b.num(c).map { it.toInt() }.distinct().sorted() } }.orEmpty()
+        if (packs.size > 1) {
+            val col = instanceColumn(batAll!!)!!
+            val extra = t["BATA"]
+            for (p in packs) {
+                val tab = filterInstance(batAll, col, p.toDouble())
+                val name = Batteries.label(p)
+                fun addBat(m: Batteries.Metric, src: String, column: String, from: MessageTable?) =
+                    add(Batteries.key(p, m), "$name · ${m.title}", "$src[$p]", column, m.unit, from)
+                addBat(Batteries.Metric.VOLT, batName, "Volt", tab)
+                addBat(Batteries.Metric.CURR, batName, "Curr", tab)
+                addBat(Batteries.Metric.MAH, batName, "CurrTot", tab)
+                addBat(Batteries.Metric.REM, batName, "RemPct", tab)
+                addBat(Batteries.Metric.TEMP, batName, "Temp", tab)
+                addBat(Batteries.Metric.RES, batName, "Res", tab)
+                // Без датчика тока ArduPilot пишет нули — такие каналы не показываем.
+                Batteries.Metric.entries.forEach { m ->
+                    val k = Batteries.key(p, m)
+                    if (m != Batteries.Metric.VOLT && series[k]?.let { it.min == 0f && it.max == 0f } == true) series.remove(k)
+                }
+                if (Batteries.key(p, Batteries.Metric.MAH) !in series && extra != null) {
+                    extra.let { e -> instanceColumn(e)?.let { c -> filterInstance(e, c, p.toDouble()) } }
+                        ?.let { addBat(Batteries.Metric.MAH, "BATA", "TotmAh", it) }
+                }
+            }
+            // Основные каналы описывают первую АКБ — так и подписываем.
+            for (k in listOf(Ch.VOLT, Ch.CURR, Ch.MAH, Ch.REM)) series[k]?.let { s ->
+                series[k] = Series(s.key, "${s.label} · ${Batteries.label(packs.first())}", s.message, s.unit, s.time, s.values)
+            }
+        }
         add(Ch.VIBE_X, "Вибрации X", "VIBE", "VibeX", "м/с²", vibe)
         add(Ch.VIBE_Y, "Вибрации Y", "VIBE", "VibeY", "м/с²", vibe)
         add(Ch.VIBE_Z, "Вибрации Z", "VIBE", "VibeZ", "м/с²", vibe)
@@ -156,6 +188,17 @@ object DataFlashMapper {
             10 -> "Миссия завершена"; 12 -> "Завершение посадки"; 13 -> "Терраин"
             else -> ""
         }
+    }
+
+    /** Имя столбца с номером экземпляра (GPS.I, BAT.Inst / BAT.Instance, VIBE.IMU). */
+    private fun instanceColumn(tab: MessageTable): String? =
+        listOf("Instance", "Inst", "I", "IMU").firstOrNull { tab.has(it) }
+
+    /** Только первый экземпляр сообщения (наименьший номер). */
+    private fun firstInstance(tab: MessageTable): MessageTable {
+        val col = instanceColumn(tab) ?: return tab
+        val first = tab.num(col).minOrNull() ?: return tab
+        return filterInstance(tab, col, first)
     }
 
     private fun filterInstance(tab: MessageTable, col: String, inst: Double): MessageTable {

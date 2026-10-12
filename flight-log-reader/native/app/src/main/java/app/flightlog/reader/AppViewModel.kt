@@ -386,6 +386,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var compareB by mutableStateOf<Pair<LogEntry, LogReader.Parsed>?>(null)
         private set
     var cmpCh by mutableStateOf(0)
+    /** Метрика в сравнении АКБ одного полёта. */
+    var batMetric by mutableStateOf(0)
 
     fun startCompare() {
         if (picked.size < 2) return
