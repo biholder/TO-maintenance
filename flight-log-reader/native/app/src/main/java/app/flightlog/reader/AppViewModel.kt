@@ -1,5 +1,7 @@
 package app.flightlog.reader
 
+import app.flightlog.reader.map.MapLayer
+import app.flightlog.reader.map.MapTiles
 import android.app.Application
 import android.net.Uri
 import androidx.compose.runtime.getValue
@@ -196,6 +198,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = app.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
     var djiApiKey by mutableStateOf(prefs.getString("dji_api_key", "") ?: "")
         private set
+
+    /** Подложка трека; выбор запоминается. */
+    var mapLayer by mutableStateOf(
+        prefs.getString("map_layer", null)?.let { n -> MapLayer.entries.firstOrNull { it.name == n } } ?: MapLayer.SCHEME)
+        private set
+
+    fun selectMapLayer(layer: MapLayer) {
+        mapLayer = layer
+        prefs.edit().putString("map_layer", layer.name).apply()
+    }
+
+    init { MapTiles.init(app) }
 
     /** Подготовленный файл, ожидающий ключей DJI. */
     private var pending: Pair<File, String>? = null

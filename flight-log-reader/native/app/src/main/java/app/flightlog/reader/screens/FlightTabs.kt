@@ -55,6 +55,8 @@ import app.flightlog.reader.AppViewModel
 import app.flightlog.reader.EvFilter
 import app.flightlog.reader.TrackBy
 import app.flightlog.reader.UnitFmt
+import app.flightlog.reader.map.MapLayer
+import app.flightlog.reader.map.MapTiles
 import app.flightlog.reader.clock
 import app.flightlog.reader.durationText
 import app.flightlog.reader.num
@@ -187,11 +189,20 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
     val grid = tk.grid; val tx = tk.tx; val wr = tk.wr; val sf = tk.sf; val bg = tk.bg
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Segmented(TrackBy.entries.map { it.title }, vm.trackBy.ordinal, { vm.trackBy = TrackBy.entries[it] })
-        Box(Modifier.padding(top = 16.dp).fillMaxWidth().aspectRatio(1f).card(sf, tk.dv, Radius.L)) {
+        Row(Modifier.padding(top = 10.dp).fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            T("Подложка", Type.body(13.sp), tk.mu)
+            MapLayer.entries.forEach { l -> Chip(l.title, vm.mapLayer == l, { vm.selectMapLayer(l) }) }
+        }
+        val layer = vm.mapLayer
+        val padPx = with(LocalDensity.current) { 18.dp.toPx() }
+        val density = LocalDensity.current.density
+        val dimTiles = tk.dark && layer != MapLayer.SATELLITE
+        Box(Modifier.padding(top = 12.dp).fillMaxWidth().aspectRatio(1f).card(sf, tk.dv, Radius.L)) {
             Canvas(
-                Modifier.fillMaxSize().padding(14.dp).pointerInput(p) {
+                Modifier.fillMaxSize().pointerInput(p) {
                     detectTapGestures { pos ->
-                        val g = TrackGeometry(tr, size.width.toFloat(), size.height.toFloat())
+                        val g = TrackGeometry(tr, size.width.toFloat(), size.height.toFloat(), padPx)
                         var best = 0; var bd = Float.MAX_VALUE
                         for (i in 0 until tr.size) {
                             val (x, y) = g.project(i)
@@ -202,17 +213,31 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
                     }
                 },
             ) {
-                drawGrid(grid, 20.dp.toPx())
-                val g = TrackGeometry(tr, size.width, size.height)
+                val g = TrackGeometry(tr, size.width, size.height, padPx)
+                if (layer.url != null) {
+                    drawTiles(g, layer, density)
+                    if (dimTiles) drawRect(bg.copy(alpha = 0.35f))
+                } else drawGrid(grid, 20.dp.toPx())
                 val w = 3.dp.toPx()
-                var prev = g.project(0)
                 // Не больше ~3000 отрезков: длинные логи иначе тормозят при воспроизведении.
                 val step = (tr.size / 3000).coerceAtLeast(1)
+                // На карте — тёмная обводка, чтобы трек читался поверх снимка.
+                if (layer.url != null) {
+                    var prev = g.project(0)
+                    for (i in step until tr.size step step) {
+                        val pt = g.project(i)
+                        drawLine(Color.Black.copy(alpha = if (i > cur) 0.2f else 0.55f), Offset(prev.first, prev.second),
+                            Offset(pt.first, pt.second), w + 2.dp.toPx(), StrokeCap.Round)
+                        prev = pt
+                    }
+                }
+                var prev = g.project(0)
                 for (i in step until tr.size step step) {
                     val pt = g.project(i)
                     val k = ((colorValues[i] - lo) / (hi - lo) * (ramp.size - 1)).roundToInt().coerceIn(0, ramp.size - 1)
-                    val alpha = if (i > cur) 0.25f else 1f
-                    drawLine(ramp[k].copy(alpha = alpha), Offset(prev.first, prev.second), Offset(pt.first, pt.second), w, StrokeCap.Square)
+                    val alpha = if (i > cur) (if (layer.url != null) 0.45f else 0.25f) else 1f
+                    drawLine(ramp[k].copy(alpha = alpha), Offset(prev.first, prev.second), Offset(pt.first, pt.second), w,
+                        if (layer.url != null) StrokeCap.Round else StrokeCap.Square)
                     prev = pt
                 }
                 // Предупреждения — ромбы.
@@ -233,14 +258,22 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
                 // Текущая позиция.
                 if (cur >= 0) {
                     val (cx, cy) = g.project(cur)
+                    if (layer.url != null) drawCircle(bg, 8.dp.toPx(), Offset(cx, cy))
                     drawCircle(tx, 2.5.dp.toPx(), Offset(cx, cy))
                     drawCircle(tx, 6.dp.toPx(), Offset(cx, cy), style = Stroke(1.5.dp.toPx()))
                 }
             }
             // «H» поверх квадрата дома.
-            HomeLabel(tr, bg)
+            HomeLabel(tr, bg, padPx)
+            val onMap = if (layer.url != null) Modifier.background(bg.copy(alpha = 0.75f), RoundedCornerShape(Radius.XS)).padding(horizontal = 5.dp, vertical = 1.dp) else Modifier
             Column(Modifier.align(Alignment.BottomStart).padding(8.dp)) {
-                T("${"%.5f".format(tr.lat[0])}, ${"%.5f".format(tr.lon[0])}", Type.body(11.sp), tk.mu)
+                T("${"%.5f".format(tr.lat[0])}, ${"%.5f".format(tr.lon[0])}", Type.body(11.sp), tk.mu, onMap)
+            }
+            if (layer.url != null) {
+                Column(Modifier.align(Alignment.TopEnd).padding(8.dp), horizontalAlignment = Alignment.End) {
+                    T(layer.attribution, Type.body(10.sp), tk.mu, onMap)
+                    if (MapTiles.offline.intValue > 0) T("Нет сети — подложка из кэша", Type.body(10.sp), tk.wr, Modifier.padding(top = 4.dp).then(onMap))
+                }
             }
         }
         // Легенда.
@@ -271,13 +304,46 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
     }
 }
 
+/** Тайлы подложки под треком; пока тайл грузится, показывается увеличенный родитель из памяти. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTiles(g: TrackGeometry, layer: MapLayer, density: Float) {
+    MapTiles.revision.intValue // перерисовка, когда догрузится тайл
+    val z = kotlin.math.log2(g.scale / (256.0 * density)).roundToInt().coerceIn(1, layer.maxZoom)
+    val n = 1 shl z
+    val x0 = kotlin.math.floor(g.worldLeft * n).toInt()
+    val x1 = kotlin.math.floor((g.worldLeft + size.width / g.scale) * n).toInt()
+    val y0 = kotlin.math.floor(g.worldTop * n).toInt().coerceAtLeast(0)
+    val y1 = kotlin.math.floor((g.worldTop + size.height / g.scale) * n).toInt().coerceAtMost(n - 1)
+    fun sx(wx: Double) = ((wx - g.worldLeft) * g.scale)
+    fun sy(wy: Double) = ((wy - g.worldTop) * g.scale)
+    for (ty in y0..y1) for (tx in x0..x1) {
+        val wx = ((tx % n) + n) % n
+        val left = kotlin.math.floor(sx(tx.toDouble() / n)).toInt()
+        val top = kotlin.math.floor(sy(ty.toDouble() / n)).toInt()
+        val right = kotlin.math.ceil(sx((tx + 1).toDouble() / n)).toInt()
+        val bottom = kotlin.math.ceil(sy((ty + 1).toDouble() / n)).toInt()
+        val dstOff = androidx.compose.ui.unit.IntOffset(left, top)
+        val dstSize = IntSize(right - left, bottom - top)
+        val img = MapTiles.get(layer, z, wx, ty)
+        if (img != null) {
+            drawImage(img, srcSize = IntSize(img.width, img.height), dstOffset = dstOff, dstSize = dstSize,
+                filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
+        } else {
+            val parent = MapTiles.peek(layer, z - 1, wx / 2, ty / 2) ?: continue
+            val half = parent.width / 2
+            drawImage(parent, srcOffset = androidx.compose.ui.unit.IntOffset((wx % 2) * half, (ty % 2) * half),
+                srcSize = IntSize(half, half), dstOffset = dstOff, dstSize = dstSize,
+                filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
+        }
+    }
+}
+
 @Composable
-private fun HomeLabel(tr: app.flightlog.core.Track, bg: Color) {
+private fun HomeLabel(tr: app.flightlog.core.Track, bg: Color, padPx: Float) {
     val size = remember { androidx.compose.runtime.mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current
-    Box(Modifier.fillMaxSize().padding(14.dp).onSizeChanged { size.value = it }) {
+    Box(Modifier.fillMaxSize().onSizeChanged { size.value = it }) {
         if (size.value.width > 0) {
-            val g = TrackGeometry(tr, size.value.width.toFloat(), size.value.height.toFloat())
+            val g = TrackGeometry(tr, size.value.width.toFloat(), size.value.height.toFloat(), padPx)
             val (hx, hy) = g.project(0)
             with(density) {
                 Box(Modifier.padding(start = (hx.toDp() - 9.dp).coerceAtLeast(0.dp), top = (hy.toDp() - 9.dp).coerceAtLeast(0.dp)).size(18.dp),
