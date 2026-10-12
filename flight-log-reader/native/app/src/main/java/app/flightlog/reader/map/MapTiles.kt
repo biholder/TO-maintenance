@@ -1,6 +1,7 @@
 package app.flightlog.reader.map
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
 import androidx.compose.runtime.mutableIntStateOf
@@ -10,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.io.File
@@ -69,7 +71,7 @@ object MapTiles {
             loading += k
         }
         scope.launch {
-            val bmp = try { load(layer, z, x, y) } catch (_: Throwable) { null }
+            val bmp = try { load(layer, z, x, y)?.asImageBitmap() } catch (_: Throwable) { null }
             synchronized(loading) {
                 loading -= k
                 if (bmp == null) failed[k] = System.currentTimeMillis() else failed -= k
@@ -83,10 +85,14 @@ object MapTiles {
         return null
     }
 
-    private suspend fun load(layer: MapLayer, z: Int, x: Int, y: Int): ImageBitmap? {
+    /** Тайл для PDF: синхронно, из кэша или сети; null — недоступен. */
+    fun bitmapBlocking(layer: MapLayer, z: Int, x: Int, y: Int): Bitmap? =
+        try { runBlocking { load(layer, z, x, y) } } catch (_: Throwable) { null }
+
+    private suspend fun load(layer: MapLayer, z: Int, x: Int, y: Int): Bitmap? {
         val file = dir?.let { File(it, "${layer.name}/$z/$x/$y") }
         if (file != null && file.exists() && System.currentTimeMillis() - file.lastModified() < MAX_AGE_MS) {
-            BitmapFactory.decodeFile(file.path)?.let { return it.asImageBitmap() }
+            BitmapFactory.decodeFile(file.path)?.let { return it }
         }
         val url = layer.url?.replace("{z}", "$z")?.replace("{x}", "$x")?.replace("{y}", "$y") ?: return null
         val bytes = net.withPermit {
@@ -101,7 +107,7 @@ object MapTiles {
         }
         if (bytes == null) {
             // Без сети — хотя бы устаревший тайл с диска.
-            return file?.takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path)?.asImageBitmap() }
+            return file?.takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) }
         }
         val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
         if (file != null) runCatching {
@@ -110,7 +116,7 @@ object MapTiles {
             tmp.writeBytes(bytes)
             tmp.renameTo(file)
         }
-        return bmp.asImageBitmap()
+        return bmp
     }
 
     /** Ограничение дискового кэша: удаляются самые старые тайлы. */

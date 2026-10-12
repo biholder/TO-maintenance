@@ -4,6 +4,15 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import app.flightlog.reader.ui.TrackView
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -198,22 +207,57 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
         val padPx = with(LocalDensity.current) { 18.dp.toPx() }
         val density = LocalDensity.current.density
         val dimTiles = tk.dark && layer != MapLayer.SATELLITE
+        val viewState = remember(p) { androidx.compose.runtime.mutableStateOf<TrackView?>(null) }
+        val textMeasurer = rememberTextMeasurer()
         Box(Modifier.padding(top = 12.dp).fillMaxWidth().aspectRatio(1f).card(sf, tk.dv, Radius.L)) {
             Canvas(
-                Modifier.fillMaxSize().pointerInput(p) {
-                    detectTapGestures { pos ->
-                        val g = TrackGeometry(tr, size.width.toFloat(), size.height.toFloat(), padPx)
-                        var best = 0; var bd = Float.MAX_VALUE
-                        for (i in 0 until tr.size) {
-                            val (x, y) = g.project(i)
-                            val d = (x - pos.x) * (x - pos.x) + (y - pos.y) * (y - pos.y)
-                            if (d < bd) { bd = d; best = i }
-                        }
-                        vm.seekSec(tr.time[best])
+                Modifier.fillMaxSize()
+                    .pointerInput(p) {
+                        detectTapGestures(
+                            onDoubleTap = { viewState.value = null },
+                            onTap = { pos ->
+                                val g = TrackGeometry(tr, size.width.toFloat(), size.height.toFloat(), padPx, viewState.value)
+                                var best = 0; var bd = Float.MAX_VALUE
+                                for (i in 0 until tr.size) {
+                                    val (x, y) = g.project(i)
+                                    val d = (x - pos.x) * (x - pos.x) + (y - pos.y) * (y - pos.y)
+                                    if (d < bd) { bd = d; best = i }
+                                }
+                                vm.seekSec(tr.time[best])
+                            },
+                        )
                     }
-                },
+                    .pointerInput(p) {
+                        // Два пальца — масштаб и сдвиг; одним пальцем карта двигается, только когда приближена,
+                        // иначе жест прокручивает страницу.
+                        val slop = viewConfiguration.touchSlop
+                        val maxScale = 256.0 * density * (1 shl 21)
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            var moved = 0f
+                            var active = false
+                            do {
+                                val event = awaitPointerEvent()
+                                val fingers = event.changes.count { it.pressed }
+                                if (fingers >= 2 || viewState.value != null) {
+                                    val zoom = event.calculateZoom()
+                                    val pan = event.calculatePan()
+                                    if (!active) {
+                                        moved += pan.getDistance() + kotlin.math.abs(zoom - 1f) * 200f
+                                        active = moved > slop || fingers >= 2
+                                    }
+                                    if (active && (zoom != 1f || pan != Offset.Zero)) {
+                                        val c = event.calculateCentroid(useCurrent = true)
+                                        val g = TrackGeometry(tr, size.width.toFloat(), size.height.toFloat(), padPx, viewState.value)
+                                        viewState.value = g.transformed(zoom, c.x, c.y, pan.x, pan.y, maxScale)
+                                        event.changes.forEach { if (it.positionChanged()) it.consume() }
+                                    }
+                                }
+                            } while (event.changes.any { it.pressed })
+                        }
+                    },
             ) {
-                val g = TrackGeometry(tr, size.width, size.height, padPx)
+                val g = TrackGeometry(tr, size.width, size.height, padPx, viewState.value)
                 if (layer.url != null) {
                     drawTiles(g, layer, density)
                     if (dimTiles) drawRect(bg.copy(alpha = 0.35f))
@@ -255,6 +299,8 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
                 val hs = 18.dp.toPx()
                 drawRoundRect(tx, Offset(hx - hs / 2, hy - hs / 2), Size(hs, hs),
                     androidx.compose.ui.geometry.CornerRadius(5.dp.toPx(), 5.dp.toPx()))
+                val hLabel = textMeasurer.measure("H", Type.cond(12.sp).copy(color = bg))
+                drawText(hLabel, topLeft = Offset(hx - hLabel.size.width / 2f, hy - hLabel.size.height / 2f))
                 // Текущая позиция.
                 if (cur >= 0) {
                     val (cx, cy) = g.project(cur)
@@ -263,8 +309,12 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
                     drawCircle(tx, 6.dp.toPx(), Offset(cx, cy), style = Stroke(1.5.dp.toPx()))
                 }
             }
-            // «H» поверх квадрата дома.
-            HomeLabel(tr, bg, padPx)
+            if (viewState.value != null) {
+                Box(Modifier.align(Alignment.BottomEnd).padding(8.dp).card(bg.copy(alpha = 0.85f), tk.dv, Radius.S)
+                    .clickable { viewState.value = null }.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                    T("Весь трек", Type.body(12.sp, FontWeight.Medium))
+                }
+            }
             val onMap = if (layer.url != null) Modifier.background(bg.copy(alpha = 0.75f), RoundedCornerShape(Radius.XS)).padding(horizontal = 5.dp, vertical = 1.dp) else Modifier
             Column(Modifier.align(Alignment.BottomStart).padding(8.dp)) {
                 T("${"%.5f".format(tr.lat[0])}, ${"%.5f".format(tr.lon[0])}", Type.body(11.sp), tk.mu, onMap)
@@ -337,23 +387,6 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTiles(g: TrackG
     }
 }
 
-@Composable
-private fun HomeLabel(tr: app.flightlog.core.Track, bg: Color, padPx: Float) {
-    val size = remember { androidx.compose.runtime.mutableStateOf(IntSize.Zero) }
-    val density = LocalDensity.current
-    Box(Modifier.fillMaxSize().onSizeChanged { size.value = it }) {
-        if (size.value.width > 0) {
-            val g = TrackGeometry(tr, size.value.width.toFloat(), size.value.height.toFloat(), padPx)
-            val (hx, hy) = g.project(0)
-            with(density) {
-                Box(Modifier.padding(start = (hx.toDp() - 9.dp).coerceAtLeast(0.dp), top = (hy.toDp() - 9.dp).coerceAtLeast(0.dp)).size(18.dp),
-                    contentAlignment = Alignment.Center) {
-                    T("H", Type.cond(12.sp), bg)
-                }
-            }
-        }
-    }
-}
 
 
 // ───────────────────────── Графики ─────────────────────────

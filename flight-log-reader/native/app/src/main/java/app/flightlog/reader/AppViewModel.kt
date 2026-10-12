@@ -444,7 +444,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val ctx = getApplication<Application>()
                 val file = withContext(Dispatchers.Default) {
-                    Exporter.write(ctx, p, exFmt, exSec.toSet(), exportFileName(), units)
+                    Exporter.write(ctx, p, exFmt, exSec.toSet(), exportFileName(), units, mapLayer)
                 }
                 if (share) onShare(file, exFmt.mime)
                 else {

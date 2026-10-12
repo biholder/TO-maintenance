@@ -6,11 +6,20 @@ import kotlin.math.cos
 import kotlin.math.ln
 import kotlin.math.tan
 
+/** Масштаб и левый верхний угол экрана в мировых координатах. */
+data class TrackView(val scale: Double, val worldLeft: Double, val worldTop: Double)
+
 /**
  * Проекция трека в прямоугольник w×h с отступом [pad] — веб-Меркатор, как у тайлов
  * карт, поэтому трек точно ложится на подложку. Мировые координаты — 0..1.
  */
-class TrackGeometry(private val track: Track, val w: Float, val h: Float, val pad: Float = 0f) {
+class TrackGeometry(
+    private val track: Track, val w: Float, val h: Float, val pad: Float = 0f,
+    /** Приближенный вид (жесты); null — весь трек в кадре. */
+    view: TrackView? = null,
+) {
+    /** Масштаб, при котором весь трек в кадре. */
+    val fitScale: Double
     /** Пикселей экрана на единицу мировой координаты. */
     val scale: Double
     /** Мировые координаты левого верхнего угла экрана. */
@@ -36,9 +45,10 @@ class TrackGeometry(private val track: Track, val w: Float, val h: Float, val pa
         val spanY = (maxY - minY).coerceAtLeast(1.5e-6)
         val iw = (w - 2 * pad).coerceAtLeast(1f)
         val ih = (h - 2 * pad).coerceAtLeast(1f)
-        scale = minOf(iw / spanX, ih / spanY)
-        worldLeft = (minX + maxX) / 2 - w / 2 / scale
-        worldTop = (minY + maxY) / 2 - h / 2 / scale
+        fitScale = minOf(iw / spanX, ih / spanY)
+        scale = view?.scale ?: fitScale
+        worldLeft = view?.worldLeft ?: ((minX + maxX) / 2 - w / 2 / scale)
+        worldTop = view?.worldTop ?: ((minY + maxY) / 2 - h / 2 / scale)
         val lat = if (track.size > 0) latSum / track.size else 0.0
         metersPerUnit = EARTH_CIRCUMFERENCE * cos(Math.toRadians(lat)) / scale
     }
@@ -47,6 +57,20 @@ class TrackGeometry(private val track: Track, val w: Float, val h: Float, val pa
         ((worldX(lon) - worldLeft) * scale).toFloat() to ((worldY(lat) - worldTop) * scale).toFloat()
 
     fun project(i: Int): Pair<Float, Float> = project(track.lat[i], track.lon[i])
+
+    val view: TrackView get() = TrackView(scale, worldLeft, worldTop)
+
+    /**
+     * Вид после жеста: масштаб ×[zoom] вокруг точки [cx], [cy] экрана и сдвиг на [dx], [dy] пикселей.
+     * Возвращает null, если вид вернулся ко всему треку.
+     */
+    fun transformed(zoom: Float, cx: Float, cy: Float, dx: Float, dy: Float, maxScale: Double): TrackView? {
+        val s = (scale * zoom).coerceIn(fitScale, maxOf(fitScale, maxScale))
+        if (s <= fitScale * 1.001 && zoom < 1f) return null
+        val wx = worldLeft + cx / scale
+        val wy = worldTop + cy / scale
+        return TrackView(s, wx - (cx + dx) / s, wy - (cy + dy) / s)
+    }
 
     companion object {
         const val EARTH_CIRCUMFERENCE = 40_075_016.7

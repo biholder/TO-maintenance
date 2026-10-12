@@ -1,5 +1,6 @@
 package app.flightlog.reader.export
 
+import app.flightlog.reader.map.MapLayer
 import android.content.ContentValues
 import android.content.Context
 import android.os.Build
@@ -26,10 +27,11 @@ enum class PdfSection(val title: String) {
 object Exporter {
     fun dir(ctx: Context) = File(ctx.cacheDir, "exports").apply { mkdirs() }
 
-    fun write(ctx: Context, p: LogReader.Parsed, fmt: ExportFormat, sections: Set<PdfSection>, name: String, units: Units): File {
+    fun write(ctx: Context, p: LogReader.Parsed, fmt: ExportFormat, sections: Set<PdfSection>, name: String, units: Units,
+              mapLayer: MapLayer = MapLayer.NONE): File {
         val out = File(dir(ctx), name)
         when (fmt) {
-            ExportFormat.PDF -> out.outputStream().use { PdfReport.write(p, sections, units, it) }
+            ExportFormat.PDF -> out.outputStream().use { PdfReport.write(p, sections, units, it, mapLayer) }
             ExportFormat.CSV -> out.writeText(Export.csv(p.log))
             ExportFormat.KML -> out.writeText(Export.kml(p.log))
             ExportFormat.GPX -> out.writeText(Export.gpx(p.log))

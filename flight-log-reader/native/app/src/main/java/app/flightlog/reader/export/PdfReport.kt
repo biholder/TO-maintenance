@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import app.flightlog.core.Ch
@@ -19,6 +20,10 @@ import app.flightlog.reader.dateTimeFull
 import app.flightlog.reader.durationText
 import app.flightlog.reader.num
 import app.flightlog.reader.ui.TrackGeometry
+import app.flightlog.reader.map.MapLayer
+import app.flightlog.reader.map.MapTiles
+import kotlin.math.floor
+import kotlin.math.roundToInt
 import java.io.OutputStream
 
 /** PDF-отчёт A4 (595×842 pt) в стиле «чертёж». */
@@ -49,6 +54,33 @@ object PdfReport {
         fun ensure(h: Float) { if (y + h > H - M) newPage() }
     }
 
+    /** Подложка трека из тайлов; false — тайлы недоступны (нет сети и кэша). */
+    private fun drawMap(c: Canvas, g: TrackGeometry, layer: MapLayer, left: Float, top: Float, w: Float, h: Float): Boolean {
+        // Тайл примерно 128 pt — вдвое плотнее экрана PDF, подписи остаются читаемыми.
+        val z = kotlin.math.log2(g.scale / 128.0).roundToInt().coerceIn(1, layer.maxZoom)
+        val n = 1 shl z
+        val x0 = floor(g.worldLeft * n).toInt()
+        val x1 = floor((g.worldLeft + w / g.scale) * n).toInt()
+        val y0 = floor(g.worldTop * n).toInt().coerceAtLeast(0)
+        val y1 = floor((g.worldTop + h / g.scale) * n).toInt().coerceAtMost(n - 1)
+        if ((x1 - x0 + 1) * (y1 - y0 + 1) > 36) return false
+        c.save()
+        c.clipRect(left, top, left + w, top + h)
+        var any = false
+        val p = Paint(Paint.FILTER_BITMAP_FLAG)
+        for (ty in y0..y1) for (tx in x0..x1) {
+            val bmp = MapTiles.bitmapBlocking(layer, z, ((tx % n) + n) % n, ty) ?: continue
+            val l = left + ((tx.toDouble() / n - g.worldLeft) * g.scale).toFloat()
+            val t = top + ((ty.toDouble() / n - g.worldTop) * g.scale).toFloat()
+            val r = left + (((tx + 1).toDouble() / n - g.worldLeft) * g.scale).toFloat()
+            val b = top + (((ty + 1).toDouble() / n - g.worldTop) * g.scale).toFloat()
+            c.drawBitmap(bmp, null, RectF(l, t, r, b), p)
+            any = true
+        }
+        c.restore()
+        return any
+    }
+
     private fun paint(color: Int, size: Float, bold: Boolean = false) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.color = color
         textSize = size
@@ -59,7 +91,7 @@ object PdfReport {
         this.color = color; strokeWidth = w; style = Paint.Style.STROKE
     }
 
-    fun write(p: LogReader.Parsed, sections: Set<PdfSection>, units: Units, out: OutputStream) {
+    fun write(p: LogReader.Parsed, sections: Set<PdfSection>, units: Units, out: OutputStream, mapLayer: MapLayer = MapLayer.NONE) {
         val doc = PdfDocument()
         val x = Ctx(doc)
         val log = p.log
@@ -116,17 +148,30 @@ object PdfReport {
             val left = M
             val top = x.y
             val c = x.c!!
+            val bw = W - 2 * M
+            val g = TrackGeometry(log.track, bw, box, 14f)
+            val onMap = mapLayer.url != null && drawMap(c, g, mapLayer, left, top, bw, box)
             c.drawRect(left, top, W - M, top + box, line(DV))
-            val g = TrackGeometry(log.track, W - 2 * M - 20, box - 20)
             val path = Path()
             for (i in 0 until log.track.size) {
                 val (px, py) = g.project(i)
-                if (i == 0) path.moveTo(left + 10 + px, top + 10 + py) else path.lineTo(left + 10 + px, top + 10 + py)
+                if (i == 0) path.moveTo(left + px, top + py) else path.lineTo(left + px, top + py)
             }
-            c.drawPath(path, line(AC, 1.6f))
+            if (onMap) c.drawPath(path, line(Color.argb(150, 0, 0, 0), 3.2f))
+            c.drawPath(path, line(if (onMap) Color.parseColor("#ffb020") else AC, 1.6f))
             val (hx, hy) = g.project(0)
-            c.drawRect(left + 10 + hx - 5, top + 10 + hy - 5, left + 10 + hx + 5, top + 10 + hy + 5, Paint().apply { color = TX })
-            c.drawText("Масштаб: ${num(g.metersPerUnit * 100, 0)} м", left + 8, top + box - 8, paint(MU, 8.5f))
+            c.drawRect(left + hx - 5, top + hy - 5, left + hx + 5, top + hy + 5, Paint().apply { color = TX })
+            val label = paint(MU, 8.5f)
+            val bgPaint = Paint().apply { color = Color.argb(200, 255, 255, 255) }
+            val scaleText = "Масштаб: ${num(g.metersPerUnit * 100, 0)} м"
+            if (onMap) c.drawRect(left + 4, top + box - 18, left + 12 + label.measureText(scaleText), top + box - 4, bgPaint)
+            c.drawText(scaleText, left + 8, top + box - 8, label)
+            if (onMap) {
+                val attr = paint(MU, 7f)
+                val aw = attr.measureText(mapLayer.attribution)
+                c.drawRect(W - M - aw - 10, top + 4, W - M - 4, top + 15, bgPaint)
+                c.drawText(mapLayer.attribution, W - M - aw - 7, top + 12, attr)
+            }
             x.y += box + 18
         }
 
