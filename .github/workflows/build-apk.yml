@@ -36,8 +36,11 @@ jobs:
       - name: Restore signing key
         env:
           PLOV_KEYSTORE_BASE64: ${{ secrets.PLOV_KEYSTORE_BASE64 }}
+          PLOV_KEYSTORE_PASSWORD: ${{ secrets.PLOV_KEYSTORE_PASSWORD }}
         run: |
-          if [ -n "$PLOV_KEYSTORE_BASE64" ]; then
+          if [ -n "$PLOV_KEYSTORE_BASE64" ] && [ -z "$PLOV_KEYSTORE_PASSWORD" ]; then
+            echo "::warning::Секрет PLOV_KEYSTORE_PASSWORD не задан — APK подписан временным отладочным ключом"
+          elif [ -n "$PLOV_KEYSTORE_BASE64" ]; then
             echo "$PLOV_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/plov-signing.keystore"
             echo "PLOV_KEYSTORE_PATH=$RUNNER_TEMP/plov-signing.keystore" >> "$GITHUB_ENV"
           else

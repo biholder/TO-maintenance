@@ -20,6 +20,7 @@ android {
     // новый отладочный ключ, и Android не ставит обновление поверх («конфликтует с другим пакетом»).
     // Без секретов (локально, в форках) сборка подписывается отладочным ключом, как раньше.
     val plovKeystore = System.getenv("PLOV_KEYSTORE_PATH")?.let { file(it) }?.takeIf { it.exists() }
+        ?.takeIf { !System.getenv("PLOV_KEYSTORE_PASSWORD").isNullOrEmpty() }
     signingConfigs {
         if (plovKeystore != null) create("plov") {
             storeFile = plovKeystore
