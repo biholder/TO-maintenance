@@ -32,6 +32,7 @@ import app.flightlog.core.Ch
 import app.flightlog.core.FlightLog
 import app.flightlog.core.Motors
 import app.flightlog.reader.AppViewModel
+import app.flightlog.reader.FullChart
 import app.flightlog.reader.MAX_OVERLAY
 import app.flightlog.reader.UnitFmt
 import app.flightlog.reader.num
@@ -78,7 +79,7 @@ fun OverlayCard(vm: AppViewModel, log: FlightLog, keys: List<String>, bands: Mod
     val presets = remember(log) { presets(log) }
     Column(Modifier.fillMaxWidth().hairline(tk.dv).padding(12.dp)) {
         T("Наложение графиков", Type.body(15.sp, FontWeight.SemiBold))
-        T("До $MAX_OVERLAY каналов на одном графике — набором или по одному", Type.body(12.sp), tk.mu)
+        T("До $MAX_OVERLAY каналов на одном графике — набором или по одному. Удержание графика — на весь экран", Type.body(12.sp), tk.mu)
         Row(Modifier.padding(top = 10.dp).fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             presets.forEach { (title, ks) -> Chip(title, chosen == ks, { vm.setOverlay(if (chosen == ks) emptyList() else ks) }) }
@@ -109,7 +110,9 @@ fun OverlayCard(vm: AppViewModel, log: FlightLog, keys: List<String>, bands: Mod
         Box(Modifier.padding(top = 10.dp).fillMaxWidth().onSizeChanged { widthPx.intValue = it.width }) {
             Canvas(
                 Modifier.fillMaxWidth().height(170.dp)
-                    .pointerInput(Unit) { detectTapGestures { vm.t = (it.x / size.width).coerceIn(0f, 1f) } }
+                    .pointerInput(Unit) {
+                        detectTapGestures(onLongPress = { vm.fullChart = FullChart.Overlay }) { vm.t = (it.x / size.width).coerceIn(0f, 1f) }
+                    }
                     .pointerInput(Unit) {
                         detectHorizontalDragGestures { change, _ -> vm.t = (change.position.x / size.width).coerceIn(0f, 1f) }
                     },

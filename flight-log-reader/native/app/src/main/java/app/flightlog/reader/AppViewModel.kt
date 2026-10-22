@@ -31,6 +31,13 @@ enum class FlightTab(val title: String) { SUMMARY("Сводка"), TRACK("Тре
 enum class TrackBy(val title: String) { SPEED("Скорость"), ALT("Высота"), BATTERY("Батарея"), CURRENT("Ток"), MODE("Режим") }
 enum class EvFilter(val title: String) { ALL("Все"), WARN("Предупреждения"), MODES("Режимы") }
 
+/** Что развёрнуто на весь экран: график канала, наложение или сравнение АКБ. */
+sealed interface FullChart {
+    data class Channel(val key: String) : FullChart
+    data object Overlay : FullChart
+    data object Batteries : FullChart
+}
+
 /** Скорости воспроизведения полёта. */
 val SPEEDS = listOf(1, 2, 5, 10, 30, 60)
 const val MAX_OVERLAY = 6
@@ -81,6 +88,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun push(s: Screen) { stack.add(s) }
     fun back(): Boolean {
         if (sheet) { sheet = false; return true }
+        if (fullChart != null) { fullChart = null; return true }
         if (stack.size <= 1) {
             if (compareMode) { compareMode = false; picked.clear(); return true }
             return false
@@ -367,6 +375,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         playing = false
         flightEntry = e
         flightError = null
+        fullChart = null
         tab = FlightTab.SUMMARY
         t = 0f
         flight = repo.cached(e.id)
@@ -427,6 +436,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var cmpCh by mutableStateOf(0)
     /** Метрика в сравнении АКБ одного полёта. */
     var batMetric by mutableStateOf(0)
+    /** График, развёрнутый на весь экран (долгое нажатие). */
+    var fullChart by mutableStateOf<FullChart?>(null)
 
     fun startCompare() {
         if (picked.size < 2) return

@@ -29,6 +29,7 @@ import app.flightlog.core.Batteries
 import app.flightlog.core.FlightLog
 import app.flightlog.core.plural
 import app.flightlog.reader.AppViewModel
+import app.flightlog.reader.FullChart
 import app.flightlog.reader.num
 import app.flightlog.reader.signed
 import app.flightlog.reader.ui.Chip
@@ -76,7 +77,9 @@ fun BatteryCompareCard(vm: AppViewModel, log: FlightLog, packs: List<Int>, bands
         Box(Modifier.padding(top = 10.dp).fillMaxWidth().onSizeChanged { widthPx.intValue = it.width }) {
             Canvas(
                 Modifier.fillMaxWidth().height(150.dp)
-                    .pointerInput(Unit) { detectTapGestures { vm.t = (it.x / size.width).coerceIn(0f, 1f) } }
+                    .pointerInput(Unit) {
+                        detectTapGestures(onLongPress = { vm.fullChart = FullChart.Batteries }) { vm.t = (it.x / size.width).coerceIn(0f, 1f) }
+                    }
                     .pointerInput(Unit) {
                         detectHorizontalDragGestures { change, _ -> vm.t = (change.position.x / size.width).coerceIn(0f, 1f) }
                     },

@@ -82,10 +82,13 @@ fun SeriesChart(
     onSeek: (Float) -> Unit,
     height: Dp = 84.dp,
     bands: ModeBands? = null,
+    onLongPress: (() -> Unit)? = null,
 ) {
     Canvas(
         Modifier.fillMaxWidth().height(height)
-            .pointerInput(Unit) { detectTapGestures { onSeek((it.x / size.width).coerceIn(0f, 1f)) } }
+            .pointerInput(onLongPress) {
+                detectTapGestures(onLongPress = onLongPress?.let { f -> { f() } }) { onSeek((it.x / size.width).coerceIn(0f, 1f)) }
+            }
             .pointerInput(Unit) {
                 detectHorizontalDragGestures { change, _ -> onSeek((change.position.x / size.width).coerceIn(0f, 1f)) }
             },

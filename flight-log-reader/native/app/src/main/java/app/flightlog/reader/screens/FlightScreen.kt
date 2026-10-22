@@ -61,6 +61,15 @@ fun FlightScreen(vm: AppViewModel) {
     val e = vm.flightEntry ?: return
     val p = vm.flight
     val wide = landscape
+    val full = vm.fullChart
+    if (p != null && full != null) {
+        // График на весь экран: без шапки и вкладок, внизу свёрнутый плеер.
+        Column(Modifier.fillMaxSize()) {
+            FullChartView(vm, p, full, Modifier.weight(1f))
+            MiniPlayer(vm, p, showExpand = false)
+        }
+        return
+    }
     Column(Modifier.fillMaxSize()) {
         // Топбар; в альбомной ориентации вкладки в той же строке, чтобы не отнимать высоту.
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = if (wide) 2.dp else 8.dp),
@@ -168,14 +177,15 @@ private fun Player(vm: AppViewModel, p: LogReader.Parsed) {
 
 /** Свёрнутый плеер: одна узкая строка со шкалой. */
 @Composable
-private fun MiniPlayer(vm: AppViewModel, p: LogReader.Parsed) {
+private fun MiniPlayer(vm: AppViewModel, p: LogReader.Parsed, showExpand: Boolean = true) {
     Row(Modifier.fillMaxWidth().background(tk.sf).topRule(tk.dv).padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically) {
         PlayButton(vm, 32.dp)
         Box(Modifier.weight(1f).padding(horizontal = 10.dp)) { Scrubber(vm, p) }
         T(clock(vm.tSec), Type.cond(15.sp), maxLines = 1)
         Box(Modifier.width(4.dp))
-        IconBox(onClick = { vm.togglePlayer() }, bordered = false) { Icon(Icons.ChevronUp, tk.mu, size = 20.dp) }
+        if (showExpand) IconBox(onClick = { vm.togglePlayer() }, bordered = false) { Icon(Icons.ChevronUp, tk.mu, size = 20.dp) }
+        else { SpeedButton(vm); Box(Modifier.width(8.dp)) }
     }
 }
 

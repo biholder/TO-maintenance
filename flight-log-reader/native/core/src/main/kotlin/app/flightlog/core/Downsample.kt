@@ -10,7 +10,7 @@ object Downsample {
         val outV = FloatArray(buckets * 2)
         var n = 0
         val span = (t1 - t0).coerceAtLeast(1e-6f)
-        var i = 0
+        var i = if (t0 > (s.time.firstOrNull() ?: 0f)) s.indexAt(t0) else 0
         for (b in 0 until buckets) {
             val end = t0 + span * (b + 1) / buckets
             var minI = -1

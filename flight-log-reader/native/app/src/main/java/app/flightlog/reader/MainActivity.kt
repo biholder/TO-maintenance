@@ -92,7 +92,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun Root(vm: AppViewModel, share: (File, String) -> Unit) {
-    BackHandler(enabled = vm.stack.size > 1 || vm.sheet || vm.compareMode) { vm.back() }
+    BackHandler(enabled = vm.stack.size > 1 || vm.sheet || vm.compareMode || vm.fullChart != null) { vm.back() }
     Box(Modifier.fillMaxSize().background(tk.bg)) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             CompositionLocalProvider(LocalLandscape provides (maxWidth > maxHeight)) {

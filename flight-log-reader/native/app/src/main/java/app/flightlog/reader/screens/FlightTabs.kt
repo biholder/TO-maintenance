@@ -63,6 +63,7 @@ import app.flightlog.core.LogReader
 import app.flightlog.core.Severity
 import app.flightlog.reader.AppViewModel
 import app.flightlog.reader.EvFilter
+import app.flightlog.reader.FullChart
 import app.flightlog.reader.TrackBy
 import app.flightlog.reader.UnitFmt
 import app.flightlog.reader.map.MapLayer
@@ -536,6 +537,7 @@ fun ChartsTab(vm: AppViewModel, p: LogReader.Parsed) {
                             cursorColor = tk.tx, threshold = threshold?.let { u.channel(it, s.unit) }, thresholdColor = tk.cr,
                             onSeek = { vm.t = it },
                             bands = bands,
+                            onLongPress = { vm.fullChart = FullChart.Channel(k) },
                         )
                     }
                     Row(Modifier.padding(top = 6.dp)) {
