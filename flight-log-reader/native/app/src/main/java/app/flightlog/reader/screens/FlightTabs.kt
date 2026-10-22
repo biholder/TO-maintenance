@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -74,6 +75,7 @@ import app.flightlog.reader.ui.Chip
 import app.flightlog.reader.ui.Icon
 import app.flightlog.reader.ui.Icons
 import app.flightlog.reader.ui.Kicker
+import app.flightlog.reader.ui.landscape
 import app.flightlog.reader.ui.ModeBands
 import app.flightlog.reader.ui.Segmented
 import app.flightlog.reader.ui.Stat
@@ -97,7 +99,8 @@ fun SummaryTab(vm: AppViewModel, p: LogReader.Parsed) {
     val log = p.log
     val s = a.summary
     val u = UnitFmt(vm.units)
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+    val wide = landscape
+    val diagnostics: @Composable () -> Unit = {
         Kicker("Диагностика")
         Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (a.issues.isEmpty()) {
@@ -131,8 +134,9 @@ fun SummaryTab(vm: AppViewModel, p: LogReader.Parsed) {
                 T("${a.healthy.joinToString(", ")} — в норме", Type.body(14.sp), tk.mu)
             }
         }
-
-        Kicker("Сводка", Modifier.padding(top = 24.dp, bottom = 10.dp))
+    }
+    val info: @Composable () -> Unit = {
+        Kicker("Сводка", Modifier.padding(top = if (wide) 0.dp else 24.dp, bottom = 10.dp))
         val (dv, du) = u.dist(s.distanceM)
         val lowV = log.params.firstOrNull { it.name == "BATT_LOW_VOLT" }?.value?.takeIf { it > 0 }
         val mins = (s.flightTime / 60).toInt()
@@ -163,6 +167,17 @@ fun SummaryTab(vm: AppViewModel, p: LogReader.Parsed) {
                 T(k, Type.body(14.sp), tk.mu, Modifier.width(110.dp))
                 T(v, Type.body(14.sp, FontWeight.Medium), modifier = Modifier.weight(1f))
             }
+        }
+    }
+    if (wide) {
+        Row(Modifier.fillMaxSize()) {
+            Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(16.dp)) { diagnostics() }
+            Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(16.dp)) { info() }
+        }
+    } else {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+            diagnostics()
+            info()
         }
     }
 }
@@ -201,7 +216,7 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
     val cur = tr.indexAt(t)
     val warnTimes = remember(p) { p.analysis.issues.map { it.start } }
     val grid = tk.grid; val tx = tk.tx; val wr = tk.wr; val sf = tk.sf; val bg = tk.bg
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+    val controls: @Composable () -> Unit = {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             T("Цвет", Type.body(13.sp), tk.mu)
@@ -219,24 +234,26 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
             T("Подложка", Type.body(13.sp), tk.mu)
             MapLayer.entries.forEach { l -> Chip(l.title, vm.mapLayer == l, { vm.selectMapLayer(l) }) }
         }
-        val layer = vm.mapLayer
-        val padPx = with(LocalDensity.current) { 18.dp.toPx() }
-        val density = LocalDensity.current.density
-        val dimTiles = tk.dark && layer != MapLayer.SATELLITE
-        val viewState = remember(p) { androidx.compose.runtime.mutableStateOf<TrackView?>(null) }
-        val mapSize = remember { androidx.compose.runtime.mutableStateOf(IntSize.Zero) }
-        // При воспроизведении приближенная карта следует за бортом.
-        LaunchedEffect(cur, vm.playing) {
-            val v = viewState.value ?: return@LaunchedEffect
-            val sz = mapSize.value
-            if (!vm.playing || cur < 0 || sz.width == 0) return@LaunchedEffect
-            val g = TrackGeometry(tr, sz.width.toFloat(), sz.height.toFloat(), padPx, v)
-            val (x, y) = g.project(cur)
-            val m = 0.2f
-            if (x < sz.width * m || x > sz.width * (1 - m) || y < sz.height * m || y > sz.height * (1 - m)) viewState.value = g.centeredOn(cur)
-        }
-        val textMeasurer = rememberTextMeasurer()
-        Box(Modifier.padding(top = 12.dp).fillMaxWidth().aspectRatio(1f).card(sf, tk.dv, Radius.L).onSizeChanged { mapSize.value = it }) {
+    }
+    val layer = vm.mapLayer
+    val padPx = with(LocalDensity.current) { 18.dp.toPx() }
+    val density = LocalDensity.current.density
+    val dimTiles = tk.dark && layer != MapLayer.SATELLITE
+    val viewState = remember(p) { androidx.compose.runtime.mutableStateOf<TrackView?>(null) }
+    val mapSize = remember { androidx.compose.runtime.mutableStateOf(IntSize.Zero) }
+    // При воспроизведении приближенная карта следует за бортом.
+    LaunchedEffect(cur, vm.playing) {
+        val v = viewState.value ?: return@LaunchedEffect
+        val sz = mapSize.value
+        if (!vm.playing || cur < 0 || sz.width == 0) return@LaunchedEffect
+        val g = TrackGeometry(tr, sz.width.toFloat(), sz.height.toFloat(), padPx, v)
+        val (x, y) = g.project(cur)
+        val m = 0.2f
+        if (x < sz.width * m || x > sz.width * (1 - m) || y < sz.height * m || y > sz.height * (1 - m)) viewState.value = g.centeredOn(cur)
+    }
+    val textMeasurer = rememberTextMeasurer()
+    val mapBox: @Composable (Modifier) -> Unit = { modifier ->
+        Box(modifier.card(sf, tk.dv, Radius.L).onSizeChanged { mapSize.value = it }) {
             Canvas(
                 Modifier.fillMaxSize()
                     .pointerInput(p) {
@@ -354,6 +371,8 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
                 }
             }
         }
+    }
+    val legend: @Composable () -> Unit = {
         // Легенда.
         if (byMode) ModeLegend(bands, Modifier.padding(top = 10.dp))
         else Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -370,6 +389,8 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
             Box(Modifier.padding(horizontal = 8.dp).weight(1f).height(6.dp).background(Brush.horizontalGradient(ramp), RoundedCornerShape(3.dp)))
             T("${conv(hi)} $unitText", Type.body(12.sp), tk.mu)
         }
+    }
+    val readings: @Composable () -> Unit = {
         // Показания в текущий момент.
         val s = log.series
         val toHome = if (cur >= 0) Analyzer.haversine(tr.lat[0], tr.lon[0], tr.lat[cur], tr.lon[cur]) else null
@@ -383,6 +404,24 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
             { Stat("До дома", hd, hu, big = false) },
             { Stat("HDOP", num(s[Ch.HDOP]?.valueAt(t), 2), "", big = false) },
         ))
+    }
+    if (landscape) {
+        // Альбомная ориентация: карта на всю высоту слева, настройки и показания справа.
+        Row(Modifier.fillMaxSize().padding(12.dp)) {
+            mapBox(Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true))
+            Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(start = 16.dp)) {
+                controls()
+                legend()
+                readings()
+            }
+        }
+    } else {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+            controls()
+            mapBox(Modifier.padding(top = 12.dp).fillMaxWidth().aspectRatio(1f))
+            legend()
+            readings()
+        }
     }
 }
 
@@ -450,11 +489,20 @@ fun ChartsTab(vm: AppViewModel, p: LogReader.Parsed) {
             available.forEach { k -> Chip(log.series.getValue(k).label, k in vm.channels, { vm.toggleChannel(k) }) }
         }
         val shown = vm.channels.filter { it in log.series }
-        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (bands.names.isNotEmpty()) item(key = "modes") { ModeLegend(bands) }
-            item(key = "overlay") { OverlayCard(vm, log, overlayKeys, bands) }
-            if (packs.size > 1) item(key = "battery-compare") { BatteryCompareCard(vm, log, packs, bands) }
-            items(shown, key = { it }) { k ->
+        // В альбомной ориентации графики каналов — в две колонки, общие карточки — во всю ширину.
+        val full: (androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope.() -> androidx.compose.foundation.lazy.grid.GridItemSpan) =
+            { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }
+        androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+            androidx.compose.foundation.lazy.grid.GridCells.Fixed(if (landscape) 2 else 1),
+            Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (bands.names.isNotEmpty()) item(key = "modes", span = full) { ModeLegend(bands) }
+            item(key = "overlay", span = full) { OverlayCard(vm, log, overlayKeys, bands) }
+            if (packs.size > 1) item(key = "battery-compare", span = full) { BatteryCompareCard(vm, log, packs, bands) }
+            items(shown.size, key = { shown[it] }) { idx ->
+                val k = shown[idx]
                 val s = log.series.getValue(k)
                 val vibe = k.startsWith("vibe")
                 val threshold = when {
@@ -496,7 +544,7 @@ fun ChartsTab(vm: AppViewModel, p: LogReader.Parsed) {
                     }
                 }
             }
-            item { Box(Modifier.height(8.dp)) }
+            item(span = full) { Box(Modifier.height(8.dp)) }
         }
     }
 }

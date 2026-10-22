@@ -10,6 +10,9 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.CompositionLocalProvider
+import app.flightlog.reader.ui.LocalLandscape
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -91,13 +94,15 @@ class MainActivity : ComponentActivity() {
 private fun Root(vm: AppViewModel, share: (File, String) -> Unit) {
     BackHandler(enabled = vm.stack.size > 1 || vm.sheet || vm.compareMode) { vm.back() }
     Box(Modifier.fillMaxSize().background(tk.bg)) {
-        Box(Modifier.fillMaxSize().safeDrawingPadding()) {
-            when (vm.screen) {
-                Screen.LIBRARY -> LibraryScreen(vm)
-                Screen.DECODE -> DecodeScreen(vm, share)
-                Screen.FLIGHT -> FlightScreen(vm)
-                Screen.COMPARE -> CompareScreen(vm)
-                Screen.EXPORT -> ExportScreen(vm, share)
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+            CompositionLocalProvider(LocalLandscape provides (maxWidth > maxHeight)) {
+                when (vm.screen) {
+                    Screen.LIBRARY -> LibraryScreen(vm)
+                    Screen.DECODE -> DecodeScreen(vm, share)
+                    Screen.FLIGHT -> FlightScreen(vm)
+                    Screen.COMPARE -> CompareScreen(vm)
+                    Screen.EXPORT -> ExportScreen(vm, share)
+                }
             }
         }
         if (vm.sheet) ImportSheet(vm)

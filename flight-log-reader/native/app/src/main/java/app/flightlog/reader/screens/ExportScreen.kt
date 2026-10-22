@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +42,7 @@ import app.flightlog.reader.ui.Type
 import app.flightlog.reader.ui.bottomRule
 import app.flightlog.reader.ui.card
 import app.flightlog.reader.ui.hairline
+import app.flightlog.reader.ui.landscape
 import app.flightlog.reader.ui.tk
 import app.flightlog.reader.ui.topRule
 import java.io.File
@@ -48,6 +50,7 @@ import java.io.File
 @Composable
 fun ExportScreen(vm: AppViewModel, share: (File, String) -> Unit) {
     val p = vm.flight ?: return
+    val wide = landscape
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconBox(onClick = { vm.back() }, bordered = false) { Icon(Icons.ArrowLeft, tk.tx) }
@@ -56,7 +59,7 @@ fun ExportScreen(vm: AppViewModel, share: (File, String) -> Unit) {
                 T(p.log.fileName, Type.body(13.sp), tk.mu)
             }
         }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
+        val formats: @Composable () -> Unit = {
             Kicker("Формат", Modifier.padding(bottom = 6.dp))
             ExportFormat.entries.forEach { f ->
                 Row(
@@ -71,8 +74,10 @@ fun ExportScreen(vm: AppViewModel, share: (File, String) -> Unit) {
                     T(".${f.ext}", Type.cond(14.sp), tk.act)
                 }
             }
+        }
+        val details: @Composable () -> Unit = {
             if (vm.exFmt == ExportFormat.PDF) {
-                Kicker("Разделы отчёта", Modifier.padding(top = 22.dp, bottom = 8.dp))
+                Kicker("Разделы отчёта", Modifier.padding(top = if (wide) 0.dp else 22.dp, bottom = 8.dp))
                 Row {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         PdfSection.entries.forEach { s ->
@@ -85,13 +90,25 @@ fun ExportScreen(vm: AppViewModel, share: (File, String) -> Unit) {
                     Thumbnail(vm.exSec.toSet())
                 }
             }
-            Column(Modifier.padding(top = 20.dp).fillMaxWidth().topRule(tk.dv).padding(top = 12.dp)) {
+            Column(Modifier.padding(top = if (wide && vm.exFmt != ExportFormat.PDF) 0.dp else 20.dp).fillMaxWidth().topRule(tk.dv).padding(top = 12.dp)) {
                 Kicker("Файл")
                 T(vm.exportFileName(), Type.body(15.sp, FontWeight.Medium), modifier = Modifier.padding(top = 4.dp))
                 T("≈ ${LogReader.sizeText(Exporter.estimate(p, vm.exFmt, vm.exSec.toSet()))}", Type.body(13.sp), tk.mu)
             }
         }
-        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (wide) {
+            // Альбомная ориентация: форматы слева, разделы и файл справа.
+            Row(Modifier.weight(1f)) {
+                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) { formats() }
+                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) { details() }
+            }
+        } else {
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
+                formats()
+                details()
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = if (wide) 8.dp else 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             val ready = !vm.exporting && (vm.exFmt != ExportFormat.PDF || vm.exSec.isNotEmpty())
             SecondaryButton("Поделиться", { if (ready) vm.export(true, share) }, Modifier.weight(1f),
                 leading = { Icon(Icons.Share, tk.tx, size = 18.dp) })

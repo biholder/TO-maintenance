@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -42,6 +43,7 @@ import app.flightlog.reader.ui.Type
 import app.flightlog.reader.ui.bottomRule
 import app.flightlog.reader.ui.hairline
 import app.flightlog.reader.ui.Radius
+import app.flightlog.reader.ui.landscape
 import app.flightlog.reader.ui.tk
 
 private val CMP = listOf("Батарея" to Ch.VOLT, "Вибрации" to Ch.VIBE_Z, "Ток" to Ch.CURR, "Высота" to Ch.ALT)
@@ -59,7 +61,8 @@ fun CompareScreen(vm: AppViewModel) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { T("Открытие логов…", Type.body(15.sp), tk.mu) }
             return
         }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        val wide = landscape
+        val charts: @Composable () -> Unit = {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FlightCard("A", a.first, tk.ac, false, Modifier.weight(1f))
                 FlightCard("B", b.first, tk.mu, true, Modifier.weight(1f))
@@ -67,8 +70,9 @@ fun CompareScreen(vm: AppViewModel) {
             Box(Modifier.height(16.dp))
             Segmented(CMP.map { it.first }, vm.cmpCh, { vm.cmpCh = it })
             OverlayChart(a.second, b.second, CMP[vm.cmpCh].second)
-
-            Kicker("Метрики", Modifier.padding(top = 22.dp, bottom = 6.dp))
+        }
+        val tables: @Composable () -> Unit = {
+            Kicker("Метрики", Modifier.padding(top = if (wide) 0.dp else 22.dp, bottom = 6.dp))
             val metrics = remember(a, b) { Compare.metrics(a.second.analysis.summary, b.second.analysis.summary) }
             Row(Modifier.fillMaxWidth().bottomRule(tk.dv).padding(vertical = 8.dp)) {
                 T("МЕТРИКА", Type.kicker, tk.mu, Modifier.weight(1.6f))
@@ -98,6 +102,18 @@ fun CompareScreen(vm: AppViewModel) {
                     T("  →  ", Type.body(14.sp), tk.mu)
                     T(d.b?.let { Export.paramValue(it) } ?: "—", Type.body(14.sp, FontWeight.SemiBold), tk.mu)
                 }
+            }
+        }
+        if (wide) {
+            // Альбомная ориентация: полёты и график слева, метрики и параметры справа.
+            Row(Modifier.fillMaxSize()) {
+                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(16.dp)) { charts() }
+                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(16.dp)) { tables() }
+            }
+        } else {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+                charts()
+                tables()
             }
         }
     }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.draw.clip
@@ -44,6 +45,7 @@ import app.flightlog.reader.ui.Icon
 import app.flightlog.reader.ui.IconBox
 import app.flightlog.reader.ui.Icons
 import app.flightlog.reader.ui.Kicker
+import app.flightlog.reader.ui.landscape
 import app.flightlog.reader.ui.ModeBands
 import app.flightlog.reader.ui.drawModeStrip
 import app.flightlog.reader.ui.SecondaryButton
@@ -58,14 +60,18 @@ import app.flightlog.reader.ui.topRule
 fun FlightScreen(vm: AppViewModel) {
     val e = vm.flightEntry ?: return
     val p = vm.flight
+    val wide = landscape
     Column(Modifier.fillMaxSize()) {
-        // Топбар.
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Топбар; в альбомной ориентации вкладки в той же строке, чтобы не отнимать высоту.
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = if (wide) 2.dp else 8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
             IconBox(onClick = { vm.back() }, bordered = false) { Icon(Icons.ArrowLeft, tk.tx) }
-            Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
-                T(e.fileName, Type.cond(20.sp), maxLines = 1)
-                T("${e.autopilot} ${e.format.ext} · ${dateText(e.startUtc ?: e.importedAt)}", Type.body(13.sp), tk.mu, maxLines = 1)
+            Column(if (wide) Modifier.widthIn(max = 220.dp).padding(horizontal = 6.dp) else Modifier.weight(1f).padding(horizontal = 6.dp)) {
+                T(e.fileName, Type.cond(if (wide) 17.sp else 20.sp), maxLines = 1)
+                T("${e.autopilot} ${e.format.ext} · ${dateText(e.startUtc ?: e.importedAt)}", Type.body(if (wide) 12.sp else 13.sp), tk.mu, maxLines = 1)
             }
+            if (wide && p != null) FlightTabs(vm, p, Modifier.weight(1f))
+            else if (wide) Box(Modifier.weight(1f))
             SecondaryButton("Отчёт", { vm.push(Screen.EXPORT) }, height = 40.dp)
         }
         if (p == null) {
@@ -76,23 +82,8 @@ fun FlightScreen(vm: AppViewModel) {
             }
             return@Column
         }
-        // Табы.
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).bottomRule(tk.dv).padding(horizontal = 8.dp)) {
-            FlightTab.entries.forEach { t ->
-                val sel = vm.tab == t
-                Column(Modifier.clickable { vm.tab = t }.padding(horizontal = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(Modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
-                        T(t.title.uppercase(), Type.tab, if (sel) tk.tx else tk.mu)
-                        if (t == FlightTab.SUMMARY && p.analysis.issues.isNotEmpty()) {
-                            Box(Modifier.padding(start = 6.dp).background(statusColor(p.analysis.status), RoundedCornerShape(6.dp)).padding(horizontal = 5.dp)) {
-                                T("${p.analysis.issues.size}", Type.cond(12.sp), tk.bg)
-                            }
-                        }
-                    }
-                    Box(Modifier.height(2.dp).fillMaxWidth().background(if (sel) tk.ac else Color.Transparent))
-                }
-            }
-        }
+        if (wide) Box(Modifier.fillMaxWidth().height(1.dp).background(tk.dv))
+        else FlightTabs(vm, p, Modifier.fillMaxWidth().bottomRule(tk.dv))
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (vm.tab) {
                 FlightTab.SUMMARY -> SummaryTab(vm, p)
@@ -102,7 +93,27 @@ fun FlightScreen(vm: AppViewModel) {
                 FlightTab.PARAMS -> ParamsTab(vm, p)
             }
         }
-        Player(vm, p)
+        if (vm.playerCollapsed) MiniPlayer(vm, p) else Player(vm, p)
+    }
+}
+
+@Composable
+private fun FlightTabs(vm: AppViewModel, p: LogReader.Parsed, modifier: Modifier) {
+    Row(modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp)) {
+        FlightTab.entries.forEach { t ->
+            val sel = vm.tab == t
+            Column(Modifier.clickable { vm.tab = t }.padding(horizontal = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(Modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+                    T(t.title.uppercase(), Type.tab, if (sel) tk.tx else tk.mu)
+                    if (t == FlightTab.SUMMARY && p.analysis.issues.isNotEmpty()) {
+                        Box(Modifier.padding(start = 6.dp).background(statusColor(p.analysis.status), RoundedCornerShape(6.dp)).padding(horizontal = 5.dp)) {
+                            T("${p.analysis.issues.size}", Type.cond(12.sp), tk.bg)
+                        }
+                    }
+                }
+                Box(Modifier.height(2.dp).fillMaxWidth().background(if (sel) tk.ac else Color.Transparent))
+            }
+        }
     }
 }
 
@@ -117,31 +128,80 @@ private fun Player(vm: AppViewModel, p: LogReader.Parsed) {
     val volt = log.series[Ch.VOLT]?.valueAt(t)
     val sats = log.series[Ch.SATS]?.valueAt(t)
     val lowV = log.params.firstOrNull { it.name == "BATT_LOW_VOLT" }?.value?.takeIf { it > 0 }
-    Column(Modifier.fillMaxWidth().background(tk.sf).topRule(tk.dv).padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 12.dp)) {
-        Row(Modifier.fillMaxWidth()) {
+    val wide = landscape
+    val readings: @Composable (Modifier) -> Unit = { m ->
+        Row(m) {
             Reading("Выс", "${u.alt(alt)}", u.altUnit, Modifier.weight(1f))
             Reading("Скор", "${u.speed(spd)}", u.speedUnit, Modifier.weight(1f))
             Reading("Бат", num(volt, 1), "В", Modifier.weight(1f), warn = lowV != null && volt != null && volt < lowV)
             Reading("GPS", sats?.toInt()?.toString() ?: "—", "сп.", Modifier.weight(1f), warn = sats != null && sats < Analyzer.SATS_MIN)
         }
-        Scrubber(vm, p)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(tk.ac).clickable { vm.togglePlay() }, contentAlignment = Alignment.Center) {
-                Icon(if (vm.playing) Icons.Pause else Icons.Play, tk.onac, size = 20.dp)
-            }
-            T("${clock(t)} / ${clock(log.duration)}", Type.cond(17.sp), modifier = Modifier.padding(start = 12.dp).weight(1f))
-            val mode = log.modeAt(t)
-            val armed = log.isArmedAt(t) || log.armTime == null
-            val modeText = if (armed) mode else "DISARMED"
-            val warnMode = modeText.contains("RTL") || modeText.contains("Go Home")
-            Box(Modifier.hairline(if (warnMode) tk.wr else tk.dv, radius = 8.dp).padding(horizontal = 8.dp, vertical = 4.dp)) {
-                T(modeText, Type.cond(14.sp, 1.sp), if (warnMode) tk.wr else tk.tx)
-            }
+    }
+    val controls: @Composable (Modifier) -> Unit = { m ->
+        Row(m, verticalAlignment = Alignment.CenterVertically) {
+            PlayButton(vm, 44.dp)
+            T("${clock(t)} / ${clock(log.duration)}", Type.cond(17.sp), modifier = Modifier.padding(start = 12.dp).weight(1f), maxLines = 1)
+            ModeBadge(vm, p)
             Box(Modifier.width(8.dp))
-            Box(Modifier.height(32.dp).hairline(tk.dv, radius = 8.dp).clickable { vm.cycleSpeed() }.padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
-                T("${vm.speed}×", Type.cond(15.sp))
-            }
+            SpeedButton(vm)
+            Box(Modifier.width(4.dp))
+            IconBox(onClick = { vm.togglePlayer() }, bordered = false) { Icon(Icons.ChevronDown, tk.mu, size = 20.dp) }
         }
+    }
+    Column(Modifier.fillMaxWidth().background(tk.sf).topRule(tk.dv)
+        .padding(start = 16.dp, end = 8.dp, top = if (wide) 4.dp else 10.dp, bottom = if (wide) 4.dp else 12.dp)) {
+        if (wide) {
+            // Альбомная ориентация: показания и кнопки в одну строку, под ними шкала.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                readings(Modifier.weight(1f))
+                Box(Modifier.width(12.dp))
+                controls(Modifier.weight(1f))
+            }
+            Scrubber(vm, p)
+        } else {
+            readings(Modifier.fillMaxWidth().padding(end = 8.dp))
+            Scrubber(vm, p)
+            controls(Modifier.fillMaxWidth())
+        }
+    }
+}
+
+/** Свёрнутый плеер: одна узкая строка со шкалой. */
+@Composable
+private fun MiniPlayer(vm: AppViewModel, p: LogReader.Parsed) {
+    Row(Modifier.fillMaxWidth().background(tk.sf).topRule(tk.dv).padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        PlayButton(vm, 32.dp)
+        Box(Modifier.weight(1f).padding(horizontal = 10.dp)) { Scrubber(vm, p) }
+        T(clock(vm.tSec), Type.cond(15.sp), maxLines = 1)
+        Box(Modifier.width(4.dp))
+        IconBox(onClick = { vm.togglePlayer() }, bordered = false) { Icon(Icons.ChevronUp, tk.mu, size = 20.dp) }
+    }
+}
+
+@Composable
+private fun PlayButton(vm: AppViewModel, size: androidx.compose.ui.unit.Dp) {
+    Box(Modifier.size(size).clip(RoundedCornerShape(size * 0.27f)).background(tk.ac).clickable { vm.togglePlay() }, contentAlignment = Alignment.Center) {
+        Icon(if (vm.playing) Icons.Pause else Icons.Play, tk.onac, size = size * 0.45f)
+    }
+}
+
+@Composable
+private fun ModeBadge(vm: AppViewModel, p: LogReader.Parsed) {
+    val log = p.log
+    val t = vm.tSec
+    val armed = log.isArmedAt(t) || log.armTime == null
+    val modeText = if (armed) log.modeAt(t) else "DISARMED"
+    val warnMode = modeText.contains("RTL") || modeText.contains("Go Home")
+    Box(Modifier.hairline(if (warnMode) tk.wr else tk.dv, radius = 8.dp).padding(horizontal = 8.dp, vertical = 4.dp)) {
+        T(modeText, Type.cond(14.sp, 1.sp), if (warnMode) tk.wr else tk.tx, maxLines = 1)
+    }
+}
+
+@Composable
+private fun SpeedButton(vm: AppViewModel) {
+    Box(Modifier.height(32.dp).hairline(tk.dv, radius = 8.dp).clickable { vm.cycleSpeed() }.padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
+        T("${vm.speed}×", Type.cond(15.sp))
     }
 }
 

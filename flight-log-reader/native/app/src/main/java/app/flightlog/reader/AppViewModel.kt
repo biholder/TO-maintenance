@@ -204,6 +204,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     /** Подложка трека; выбор запоминается. */
+    /** Плеер внизу экрана полёта свёрнут в узкую полосу. */
+    var playerCollapsed by mutableStateOf(prefs.getBoolean("player_collapsed", false))
+        private set
+
+    fun togglePlayer() {
+        playerCollapsed = !playerCollapsed
+        prefs.edit().putBoolean("player_collapsed", playerCollapsed).apply()
+    }
+
     var mapLayer by mutableStateOf(
         prefs.getString("map_layer", null)?.let { n -> MapLayer.entries.firstOrNull { it.name == n } } ?: MapLayer.SCHEME)
         private set

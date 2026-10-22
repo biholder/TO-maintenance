@@ -52,6 +52,7 @@ import app.flightlog.reader.ui.T
 import app.flightlog.reader.ui.Type
 import app.flightlog.reader.ui.bottomRule
 import app.flightlog.reader.ui.hairline
+import app.flightlog.reader.ui.landscape
 import app.flightlog.reader.ui.tk
 import app.flightlog.reader.ui.topRule
 
@@ -69,16 +70,23 @@ fun LibraryScreen(vm: AppViewModel) {
     val all = vm.entries
     val list = all.filter { vm.srcFilter == null || it.autopilot == vm.srcFilter }
     val total = all.sumOf { it.flightTime.toDouble() }.toFloat()
+    val wide = landscape
     Column(Modifier.fillMaxSize()) {
-        // Шапка.
-        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 12.dp), verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f)) {
-                T("Полёты", Type.h1)
-                T(
-                    if (all.isEmpty()) "Логов пока нет"
-                    else "${all.size} ${plural(all.size, "лог", "лога", "логов")} · ${durationText(total)} налёта",
-                    Type.body(14.sp), tk.mu, Modifier.padding(top = 4.dp),
-                )
+        // Шапка; в альбомной ориентации — компактная, с кнопкой импорта вместо нижней панели.
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = if (wide) 4.dp else 10.dp, bottom = if (wide) 6.dp else 12.dp),
+            verticalAlignment = if (wide) Alignment.CenterVertically else Alignment.Top) {
+            val summary = if (all.isEmpty()) "Логов пока нет"
+                else "${all.size} ${plural(all.size, "лог", "лога", "логов")} · ${durationText(total)} налёта"
+            if (wide) {
+                T("Полёты", Type.h2)
+                T(summary, Type.body(14.sp), tk.mu, Modifier.padding(start = 12.dp).weight(1f), maxLines = 1)
+                if (!vm.compareMode) PrimaryButton("Импортировать", { vm.sheet = true }, height = 40.dp, marks = false, cornerRadius = 10.dp,
+                    leading = { Icon(Icons.Upload, tk.onac, size = 18.dp) })
+            } else {
+                Column(Modifier.weight(1f)) {
+                    T("Полёты", Type.h1)
+                    T(summary, Type.body(14.sp), tk.mu, Modifier.padding(top = 4.dp))
+                }
             }
             OverflowMenu(vm)
         }
@@ -105,16 +113,16 @@ fun LibraryScreen(vm: AppViewModel) {
         }
 
         // Нижняя панель.
-        Box(Modifier.fillMaxWidth().topRule(tk.dv).background(tk.bg).padding(16.dp)) {
+        if (!wide || vm.compareMode) Box(Modifier.fillMaxWidth().topRule(tk.dv).background(tk.bg).padding(horizontal = 16.dp, vertical = if (wide) 8.dp else 16.dp)) {
             if (vm.compareMode) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         T("Выберите 2 полёта", Type.body(15.sp, FontWeight.Medium))
                         T("${vm.picked.size} из 2", Type.body(13.sp), tk.mu)
                     }
-                    SecondaryButton("Отмена", { vm.compareMode = false; vm.picked.clear() }, height = 52.dp)
+                    SecondaryButton("Отмена", { vm.compareMode = false; vm.picked.clear() }, height = if (wide) 44.dp else 52.dp)
                     Box(Modifier.width(8.dp))
-                    PrimaryButton("Сравнить", { vm.startCompare() }, height = 52.dp, enabled = vm.picked.size == 2)
+                    PrimaryButton("Сравнить", { vm.startCompare() }, height = if (wide) 44.dp else 52.dp, enabled = vm.picked.size == 2)
                 }
             } else {
                 PrimaryButton("Импортировать лог", { vm.sheet = true }, Modifier.fillMaxWidth(),

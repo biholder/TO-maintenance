@@ -1,5 +1,9 @@
 package app.flightlog.reader.screens
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -54,14 +58,15 @@ fun ImportSheet(vm: AppViewModel) {
         if (uri != null) vm.importUri(uri)
     }
     Box(
-        Modifier.fillMaxSize().background(Color(0x73000000))
+        Modifier.fillMaxSize().background(Color(0x73000000)).statusBarsPadding()
             .clickable(remember { MutableInteractionSource() }, null) { vm.sheet = false },
         contentAlignment = Alignment.BottomCenter,
     ) {
         Column(
-            Modifier.fillMaxWidth().background(tk.bg, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+            // В альбомной ориентации лист уже экрана и прокручивается.
+            Modifier.widthIn(max = 640.dp).fillMaxWidth().background(tk.bg, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                 .clickable(remember { MutableInteractionSource() }, null) {}
-                .navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                .navigationBarsPadding().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
         ) {
             Box(Modifier.fillMaxWidth().padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
                 Box(Modifier.size(32.dp, 4.dp).background(tk.mk, RoundedCornerShape(2.dp)))
