@@ -170,7 +170,7 @@ class DataFlashParser(
         /** Сообщения, нужные для анализа полёта. */
         val DEFAULT_MESSAGES = setOf(
             "PARM", "MSG", "MODE", "EV", "ERR", "GPS", "CTUN", "BAT", "BAT0", "BATA", "CURR", "VIBE",
-            "ATT", "VER", "XKF4", "POS",
+            "ATT", "VER", "XKF4", "POS", "RCOU", "MAG", "MAG2", "MAG3", "RSSI",
         )
 
         /** Сообщения без прореживания: события, режимы, параметры, текст. */

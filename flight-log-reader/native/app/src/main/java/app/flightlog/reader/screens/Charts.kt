@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.flightlog.core.Downsample
 import app.flightlog.core.Series
+import app.flightlog.reader.ui.ModeBands
+import app.flightlog.reader.ui.drawModeBands
 
 /** Прореженный ряд в координатах 0..1 по времени и значению. */
 class ChartData(val x: FloatArray, val y: FloatArray, val lo: Float, val hi: Float)
@@ -79,6 +81,7 @@ fun SeriesChart(
     thresholdColor: Color,
     onSeek: (Float) -> Unit,
     height: Dp = 84.dp,
+    bands: ModeBands? = null,
 ) {
     Canvas(
         Modifier.fillMaxWidth().height(height)
@@ -87,6 +90,7 @@ fun SeriesChart(
                 detectHorizontalDragGestures { change, _ -> onSeek((change.position.x / size.width).coerceIn(0f, 1f)) }
             },
     ) {
+        drawModeBands(bands)
         drawSeries(data, line, fill, 1.5.dp.toPx())
         threshold?.let { drawThreshold(data, it, thresholdColor) }
         val cx = cursor * size.width

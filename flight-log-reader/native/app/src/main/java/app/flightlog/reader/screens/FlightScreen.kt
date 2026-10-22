@@ -44,6 +44,8 @@ import app.flightlog.reader.ui.Icon
 import app.flightlog.reader.ui.IconBox
 import app.flightlog.reader.ui.Icons
 import app.flightlog.reader.ui.Kicker
+import app.flightlog.reader.ui.ModeBands
+import app.flightlog.reader.ui.drawModeStrip
 import app.flightlog.reader.ui.SecondaryButton
 import app.flightlog.reader.ui.T
 import app.flightlog.reader.ui.Type
@@ -160,12 +162,16 @@ private fun Scrubber(vm: AppViewModel, p: LogReader.Parsed) {
     val marks = androidx.compose.runtime.remember(p) {
         p.log.events.filter { it.kind != EventKind.INFO }.map { (it.time / p.log.duration) to (it.kind == EventKind.WARN) }
     }
+    val bands = androidx.compose.runtime.remember(p) { ModeBands.of(p.log) }
     Canvas(
-        Modifier.fillMaxWidth().height(26.dp).padding(vertical = 0.dp)
+        Modifier.fillMaxWidth().height(30.dp).padding(vertical = 0.dp)
             .pointerInput(p) { detectTapGestures { vm.t = (it.x / size.width).coerceIn(0f, 1f) } }
             .pointerInput(p) { detectDragGestures { change, _ -> vm.t = (change.position.x / size.width).coerceIn(0f, 1f) } },
     ) {
-        val cy = size.height / 2
+        // Режимы полёта — тонкая полоса под шкалой.
+        val stripH = 3.dp.toPx()
+        drawModeStrip(bands, size.height - stripH, stripH)
+        val cy = (size.height - stripH) / 2
         val th = 4.dp.toPx()
         val cr = androidx.compose.ui.geometry.CornerRadius(th / 2, th / 2)
         drawRoundRect(sf2, Offset(0f, cy - th / 2), Size(size.width, th), cr)

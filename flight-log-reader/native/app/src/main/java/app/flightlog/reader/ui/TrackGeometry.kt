@@ -72,6 +72,10 @@ class TrackGeometry(
         return TrackView(s, wx - (cx + dx) / s, wy - (cy + dy) / s)
     }
 
+    /** Тот же масштаб, но точка [i] трека — в центре экрана. */
+    fun centeredOn(i: Int): TrackView =
+        TrackView(scale, worldX(track.lon[i]) - w / 2 / scale, worldY(track.lat[i]) - h / 2 / scale)
+
     companion object {
         const val EARTH_CIRCUMFERENCE = 40_075_016.7
 

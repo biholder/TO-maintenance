@@ -65,6 +65,50 @@ object Batteries {
         }
     }
 
+    /**
+     * Оценка сопротивления цепи питания: [ohms] — по связи быстрых колебаний тока и напряжения,
+     * [sag] — просадка при пиковом токе [maxCurr], [sagShare] — её доля от напряжения без нагрузки.
+     */
+    data class Resistance(val ohms: Float, val maxCurr: Float, val sag: Float, val sagShare: Float)
+
+    /**
+     * Медленный разряд убирается вычитанием скользящего среднего за 10 с, остаются быстрые изменения
+     * тока при манёврах; наклон зависимости напряжения от тока — сопротивление. null — данных мало
+     * или ток почти не менялся.
+     */
+    fun resistance(volt: Series, curr: Series, from: Float, to: Float): Resistance? {
+        val idx = (0 until curr.size).filter { curr.time[it] in from..to && volt.valueAt(curr.time[it]) != null }
+        if (idx.size < 50) return null
+        val t = FloatArray(idx.size) { curr.time[idx[it]] }
+        val i = FloatArray(idx.size) { curr.values[idx[it]] }
+        val v = FloatArray(idx.size) { volt.valueAt(t[it])!! }
+        val hi = highPass(t, i, 10f)
+        val hv = highPass(t, v, 10f)
+        val fit = linearFit(hi, hv) ?: return null
+        val stdI = kotlin.math.sqrt(hi.sumOf { (it * it).toDouble() } / hi.size)
+        if (fit.slope >= 0f || fit.r < 0.5f || stdI < 1.5) return null
+        val ohms = -fit.slope
+        // Не по разовому всплеску: 98-й процентиль тока.
+        val maxCurr = i.sorted()[(i.size * 0.98).toInt().coerceAtMost(i.size - 1)]
+        val open = FloatArray(v.size) { v[it] + ohms * i[it] }.sorted()[v.size / 2]
+        if (open <= 0f) return null
+        val sag = ohms * maxCurr
+        return Resistance(ohms, maxCurr, sag, sag / open)
+    }
+
+    /** Ряд минус его скользящее среднее за окно [window] секунд. */
+    private fun highPass(t: FloatArray, x: FloatArray, window: Float): FloatArray {
+        val out = FloatArray(x.size)
+        var a = 0; var b = 0
+        var sum = 0.0
+        for (k in x.indices) {
+            while (b < x.size && t[b] <= t[k] + window / 2) { sum += x[b]; b++ }
+            while (t[a] < t[k] - window / 2) { sum -= x[a]; a++ }
+            out[k] = x[k] - (sum / (b - a)).toFloat()
+        }
+        return out
+    }
+
     /** Порог разбаланса: доля от среднего значения. */
     const val IMBALANCE_SHARE = 0.15f
     /** Минимальный ток, при котором имеет смысл сравнивать токи АКБ, А. */

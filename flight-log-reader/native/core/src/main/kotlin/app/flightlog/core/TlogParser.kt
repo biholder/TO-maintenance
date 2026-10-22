@@ -113,10 +113,14 @@ class TlogParser {
         const val SYSTEM_TIME = 2
         const val PARAM_VALUE = 22
         const val GPS_RAW_INT = 24
+        const val RAW_IMU = 27
         const val ATTITUDE = 30
         const val GLOBAL_POSITION_INT = 33
+        const val SERVO_OUTPUT_RAW = 36
+        const val RC_CHANNELS = 65
         const val VFR_HUD = 74
         const val BATTERY_STATUS = 147
+        const val EKF_STATUS_REPORT = 193
         const val VIBRATION = 241
         const val STATUSTEXT = 253
 
@@ -125,12 +129,14 @@ class TlogParser {
             HEARTBEAT to 50, SYS_STATUS to 124, SYSTEM_TIME to 137, PARAM_VALUE to 220,
             GPS_RAW_INT to 24, ATTITUDE to 39, GLOBAL_POSITION_INT to 104, VFR_HUD to 20,
             BATTERY_STATUS to 154, VIBRATION to 90, STATUSTEXT to 83,
+            RAW_IMU to 144, SERVO_OUTPUT_RAW to 222, RC_CHANNELS to 118, EKF_STATUS_REPORT to 71,
         )
         /** Длина базовой части payload (без расширений). */
         private val MIN_LEN = mapOf(
             HEARTBEAT to 9, SYS_STATUS to 31, SYSTEM_TIME to 12, PARAM_VALUE to 25,
             GPS_RAW_INT to 30, ATTITUDE to 28, GLOBAL_POSITION_INT to 28, VFR_HUD to 20,
             BATTERY_STATUS to 36, VIBRATION to 32, STATUSTEXT to 51,
+            RAW_IMU to 26, SERVO_OUTPUT_RAW to 21, RC_CHANNELS to 42, EKF_STATUS_REPORT to 22,
         )
     }
 }

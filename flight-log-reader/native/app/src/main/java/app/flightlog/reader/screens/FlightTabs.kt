@@ -74,6 +74,7 @@ import app.flightlog.reader.ui.Chip
 import app.flightlog.reader.ui.Icon
 import app.flightlog.reader.ui.Icons
 import app.flightlog.reader.ui.Kicker
+import app.flightlog.reader.ui.ModeBands
 import app.flightlog.reader.ui.Segmented
 import app.flightlog.reader.ui.Stat
 import app.flightlog.reader.ui.StatusDot
@@ -179,13 +180,17 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
         }
         return
     }
-    // Значения для раскраски по выбранной метрике.
+    val bands = remember(log) { ModeBands.of(log) }
+    val byMode = vm.trackBy == TrackBy.MODE
+    // Значения для раскраски по выбранной метрике; для режима — номер режима.
     val colorValues = remember(p, vm.trackBy) {
         FloatArray(tr.size) { i ->
             when (vm.trackBy) {
                 TrackBy.SPEED -> tr.speed[i]
                 TrackBy.ALT -> log.series[Ch.ALT]?.valueAt(tr.time[i]) ?: tr.alt[i]
                 TrackBy.BATTERY -> log.series[Ch.VOLT]?.valueAt(tr.time[i]) ?: 0f
+                TrackBy.CURRENT -> log.series[Ch.CURR]?.valueAt(tr.time[i]) ?: 0f
+                TrackBy.MODE -> bands.names.indexOf(log.modeAt(tr.time[i])).toFloat()
             }
         }
     }
@@ -197,7 +202,18 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
     val warnTimes = remember(p) { p.analysis.issues.map { it.start } }
     val grid = tk.grid; val tx = tk.tx; val wr = tk.wr; val sf = tk.sf; val bg = tk.bg
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-        Segmented(TrackBy.entries.map { it.title }, vm.trackBy.ordinal, { vm.trackBy = TrackBy.entries[it] })
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            T("Цвет", Type.body(13.sp), tk.mu)
+            TrackBy.entries.filter { by ->
+                when (by) {
+                    TrackBy.CURRENT -> Ch.CURR in log.series
+                    TrackBy.BATTERY -> Ch.VOLT in log.series
+                    TrackBy.MODE -> bands.names.isNotEmpty()
+                    else -> true
+                }
+            }.forEach { by -> Chip(by.title, vm.trackBy == by, { vm.trackBy = by }) }
+        }
         Row(Modifier.padding(top = 10.dp).fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             T("Подложка", Type.body(13.sp), tk.mu)
@@ -208,8 +224,19 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
         val density = LocalDensity.current.density
         val dimTiles = tk.dark && layer != MapLayer.SATELLITE
         val viewState = remember(p) { androidx.compose.runtime.mutableStateOf<TrackView?>(null) }
+        val mapSize = remember { androidx.compose.runtime.mutableStateOf(IntSize.Zero) }
+        // При воспроизведении приближенная карта следует за бортом.
+        LaunchedEffect(cur, vm.playing) {
+            val v = viewState.value ?: return@LaunchedEffect
+            val sz = mapSize.value
+            if (!vm.playing || cur < 0 || sz.width == 0) return@LaunchedEffect
+            val g = TrackGeometry(tr, sz.width.toFloat(), sz.height.toFloat(), padPx, v)
+            val (x, y) = g.project(cur)
+            val m = 0.2f
+            if (x < sz.width * m || x > sz.width * (1 - m) || y < sz.height * m || y > sz.height * (1 - m)) viewState.value = g.centeredOn(cur)
+        }
         val textMeasurer = rememberTextMeasurer()
-        Box(Modifier.padding(top = 12.dp).fillMaxWidth().aspectRatio(1f).card(sf, tk.dv, Radius.L)) {
+        Box(Modifier.padding(top = 12.dp).fillMaxWidth().aspectRatio(1f).card(sf, tk.dv, Radius.L).onSizeChanged { mapSize.value = it }) {
             Canvas(
                 Modifier.fillMaxSize()
                     .pointerInput(p) {
@@ -278,9 +305,10 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
                 var prev = g.project(0)
                 for (i in step until tr.size step step) {
                     val pt = g.project(i)
-                    val k = ((colorValues[i] - lo) / (hi - lo) * (ramp.size - 1)).roundToInt().coerceIn(0, ramp.size - 1)
+                    val col = if (byMode) bands.color(colorValues[i].toInt().coerceAtLeast(0))
+                    else ramp[((colorValues[i] - lo) / (hi - lo) * (ramp.size - 1)).roundToInt().coerceIn(0, ramp.size - 1)]
                     val alpha = if (i > cur) (if (layer.url != null) 0.45f else 0.25f) else 1f
-                    drawLine(ramp[k].copy(alpha = alpha), Offset(prev.first, prev.second), Offset(pt.first, pt.second), w,
+                    drawLine(col.copy(alpha = alpha), Offset(prev.first, prev.second), Offset(pt.first, pt.second), w,
                         if (layer.url != null) StrokeCap.Round else StrokeCap.Square)
                     prev = pt
                 }
@@ -327,12 +355,16 @@ fun TrackTab(vm: AppViewModel, p: LogReader.Parsed) {
             }
         }
         // Легенда.
-        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            val unitText = when (vm.trackBy) { TrackBy.SPEED -> u.speedUnit; TrackBy.ALT -> u.altUnit; TrackBy.BATTERY -> "В" }
+        if (byMode) ModeLegend(bands, Modifier.padding(top = 10.dp))
+        else Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            val unitText = when (vm.trackBy) {
+                TrackBy.SPEED -> u.speedUnit; TrackBy.ALT -> u.altUnit; TrackBy.BATTERY -> "В"; TrackBy.CURRENT -> "А"; TrackBy.MODE -> ""
+            }
             val conv: (Float) -> String = when (vm.trackBy) {
                 TrackBy.SPEED -> { v -> u.speed(v) }
                 TrackBy.ALT -> { v -> u.alt(v) }
                 TrackBy.BATTERY -> { v -> num(v, 1) }
+                TrackBy.CURRENT, TrackBy.MODE -> { v -> num(v, 0) }
             }
             T(conv(lo), Type.body(12.sp), tk.mu)
             Box(Modifier.padding(horizontal = 8.dp).weight(1f).height(6.dp).background(Brush.horizontalGradient(ramp), RoundedCornerShape(3.dp)))
@@ -391,7 +423,12 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTiles(g: TrackG
 
 // ───────────────────────── Графики ─────────────────────────
 
-private val CHANNELS = listOf(Ch.ALT, Ch.SPD, Ch.VOLT, Ch.CURR, Ch.VIBE_Z, Ch.SATS, Ch.ROLL, Ch.PITCH, Ch.VIBE_X, Ch.VIBE_Y, Ch.HDOP, Ch.CLIMB, Ch.MAH, Ch.CLIP)
+private val CHANNELS = listOf(Ch.ALT, Ch.SPD, Ch.VOLT, Ch.CURR, Ch.VIBE_Z, Ch.SATS, Ch.ROLL, Ch.PITCH, Ch.VIBE_X, Ch.VIBE_Y, Ch.HDOP, Ch.CLIMB,
+    Ch.MAH, Ch.CLIP, Ch.THR, Ch.EKF, Ch.MAG, Ch.magDiff(1), Ch.RSSI)
+
+/** Все каналы лога для наложения: сначала стандартные, затем остальные в порядке разбора. */
+private fun overlayKeys(log: app.flightlog.core.FlightLog): List<String> =
+    (CHANNELS.filter { it in log.series } + log.series.keys).distinct()
 
 @Composable
 fun ChartsTab(vm: AppViewModel, p: LogReader.Parsed) {
@@ -405,6 +442,8 @@ fun ChartsTab(vm: AppViewModel, p: LogReader.Parsed) {
     }
     val lowV = log.params.firstOrNull { it.name == "BATT_LOW_VOLT" }?.value?.takeIf { it > 0 }
     val packs = remember(log) { Batteries.packs(log) }
+    val bands = remember(log) { ModeBands.of(log) }
+    val overlayKeys = remember(log) { overlayKeys(log) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -412,24 +451,29 @@ fun ChartsTab(vm: AppViewModel, p: LogReader.Parsed) {
         }
         val shown = vm.channels.filter { it in log.series }
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (packs.size > 1) item(key = "battery-compare") { BatteryCompareCard(vm, log, packs) }
+            if (bands.names.isNotEmpty()) item(key = "modes") { ModeLegend(bands) }
+            item(key = "overlay") { OverlayCard(vm, log, overlayKeys, bands) }
+            if (packs.size > 1) item(key = "battery-compare") { BatteryCompareCard(vm, log, packs, bands) }
             items(shown, key = { it }) { k ->
                 val s = log.series.getValue(k)
                 val vibe = k.startsWith("vibe")
                 val threshold = when {
                     vibe -> Analyzer.VIBE_WARN
                     k == Ch.VOLT -> lowV
+                    k == Ch.EKF -> Analyzer.EKF_WARN
+                    k == Ch.RSSI -> Analyzer.RSSI_WARN
                     else -> null
                 }
+                val below = k == Ch.VOLT || k == Ch.RSSI
                 val cur = s.valueAt(vm.tSec)
-                val over = cur != null && threshold != null && (if (k == Ch.VOLT) cur < threshold else cur > threshold)
+                val over = cur != null && threshold != null && (if (below) cur < threshold else cur > threshold)
                 Column(Modifier.fillMaxWidth().hairline(tk.dv).padding(12.dp)) {
                     Row(verticalAlignment = Alignment.Bottom) {
                         Column(Modifier.weight(1f)) {
                             T(s.label, Type.body(15.sp, FontWeight.SemiBold))
                             T(s.message, Type.body(12.sp), tk.mu)
                         }
-                        T(cur?.let { num(u.channel(it, s.unit), if (k == Ch.SATS || k == Ch.CLIP) 0 else 1) } ?: "—",
+                        T(cur?.let { num(u.channel(it, s.unit), if (k == Ch.SATS || k == Ch.CLIP) 0 else if (s.unit == "") 2 else 1) } ?: "—",
                             Type.cond(22.sp), if (over) tk.wr else tk.tx)
                         T(" ${u.channelUnit(s.unit)}", Type.body(12.sp), tk.mu, Modifier.padding(bottom = 3.dp))
                     }
@@ -443,6 +487,7 @@ fun ChartsTab(vm: AppViewModel, p: LogReader.Parsed) {
                             line = if (vibe) tk.wr else tk.ac, fill = if (vibe) tk.wr1 else tk.ac1,
                             cursorColor = tk.tx, threshold = threshold?.let { u.channel(it, s.unit) }, thresholdColor = tk.cr,
                             onSeek = { vm.t = it },
+                            bands = bands,
                         )
                     }
                     Row(Modifier.padding(top = 6.dp)) {

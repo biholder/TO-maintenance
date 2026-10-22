@@ -1,5 +1,8 @@
 package app.flightlog.core
 
+import kotlin.math.acos
+import kotlin.math.sqrt
+
 /** Преобразует таблицы DataFlash в модель полёта. */
 object DataFlashMapper {
     private const val GPS_EPOCH_MS = 315964800000L // 1980-01-06T00:00:00Z
@@ -108,6 +111,18 @@ object DataFlashMapper {
         if (ctun != null && ctun.has("CRt")) add(Ch.CLIMB, "Верт. скорость", "CTUN", "CRt", "м/с", ctun) { it / 100f }
         else gpsTab?.let { g -> if (g.has("VZ")) add(Ch.CLIMB, "Верт. скорость", "GPS", "VZ", "м/с", g) { -it } }
 
+        if (ctun != null && ctun.has("ThO")) add(Ch.THR, "Газ", "CTUN", "ThO", "%", ctun) { it * 100f }
+        t["RSSI"]?.let { r ->
+            add(Ch.RSSI, "Сигнал RC", "RSSI", "RXRSSI", "%", r)
+            // ArduPilot пишет 0…1; старые прошивки — 0…255.
+            series[Ch.RSSI]?.let { s ->
+                val k = if (s.max <= 1.001f) 100f else 100f / 255f
+                series[Ch.RSSI] = Series(s.key, s.label, s.message, s.unit, s.time, FloatArray(s.size) { s.values[it] * k })
+            }
+        }
+        addEkf(t["XKF4"], series, ::time)
+        addCompasses(t, series, ::time)
+
         val track = buildTrack(gpsTab, ::time)
         val startUtc = gpsTab?.let { g ->
             if (!g.has("GWk") || !g.has("GMS")) return@let null
@@ -145,7 +160,7 @@ object DataFlashMapper {
             for (i in tt.indices) {
                 val s = sub[i].toInt(); val c = code[i].toInt()
                 val name = ArduPilot.ERR_SUBSYS[s] ?: "Подсистема $s"
-                val title = if (c == 0) "$name: восстановлено" else "$name: ошибка $c"
+                val title = "$name: ${ArduPilot.errCodeText(s, c, vehicleType)}"
                 events += LogEvent(tt[i], if (c == 0) EventKind.INFO else EventKind.WARN, title, "Subsys $s · ECode $c", "ERR")
             }
         }
@@ -171,6 +186,16 @@ object DataFlashMapper {
             map.values.sortedBy { it.name }
         } ?: emptyList()
 
+        // Выходы на моторы: какие выходы — моторы, известно из параметров.
+        t["RCOU"]?.let { rc ->
+            val pm = params.associate { it.name to it.value }
+            val heli = Motors.isHeli(pm, frame, firmware)
+            for ((out, motor) in Motors.outputs(pm, frame, vehicleType, heli)) {
+                val col = listOf("C$out", "Ch$out").firstOrNull { rc.has(it) } ?: continue
+                add(Motors.key(motor), Motors.label(motor), "RCOU", col, "мкс", rc)
+            }
+        }
+
         return FlightLog(
             fileName = fileName, fileSize = fileSize, format = format,
             vehicle = VehicleInfo("ArduPilot", vehicleType, firmware, board, frame, gps),
@@ -178,6 +203,56 @@ object DataFlashMapper {
             events = events, modes = modes, params = params, armTime = armT, disarmTime = disarmT,
             messageCount = r.messageCount,
         )
+    }
+
+    /** Отношения тестов инноваций EKF3 (XKF4) первого ядра; больше 1 — измерения отвергаются. */
+    private fun addEkf(x: MessageTable?, series: MutableMap<String, Series>, time: (MessageTable) -> FloatArray) {
+        if (x == null || x.rows == 0) return
+        val tab = if (x.has("C")) filterInstance(x, "C", x.num("C").minOrNull() ?: 0.0) else x
+        val tt = time(tab)
+        val parts = listOf(
+            Triple(Ch.EKF_VEL, "SV", "EKF: скорость"), Triple(Ch.EKF_POS, "SP", "EKF: позиция"),
+            Triple(Ch.EKF_HGT, "SH", "EKF: высота"), Triple(Ch.EKF_MAG, "SM", "EKF: компас"),
+        ).filter { tab.has(it.second) }
+        if (parts.isEmpty()) return
+        val all = parts.map { tab.float(it.second) }
+        parts.forEachIndexed { i, (key, col, label) -> series[key] = Series(key, label, "XKF4.$col", "", tt, all[i]) }
+        val max = FloatArray(tt.size) { r -> all.maxOf { it[r] } }
+        series[Ch.EKF] = Series(Ch.EKF, "EKF: инновации", "XKF4 · макс.", "", tt, max)
+    }
+
+    /** Модуль поля каждого компаса и угол расхождения с первым. */
+    private fun addCompasses(t: Map<String, MessageTable>, series: MutableMap<String, Series>, time: (MessageTable) -> FloatArray) {
+        val tabs = ArrayList<MessageTable>()
+        t["MAG"]?.let { m ->
+            val col = instanceColumn(m)
+            if (col == null) tabs += m else m.num(col).distinct().sorted().forEach { tabs += filterInstance(m, col, it) }
+        }
+        t["MAG2"]?.let { tabs += it }
+        t["MAG3"]?.let { tabs += it }
+        val vec = tabs.filter { it.rows > 0 && it.has("MagX") && it.has("MagY") && it.has("MagZ") }
+            .map { Triple(it.float("MagX"), it.float("MagY"), it.float("MagZ")) to time(it) }
+        vec.forEachIndexed { i, (v, tt) ->
+            val (x, y, z) = v
+            val mod = FloatArray(tt.size) { r -> sqrt(x[r] * x[r] + y[r] * y[r] + z[r] * z[r]) }
+            val key = Ch.mag(i)
+            series[key] = Series(key, if (i == 0) "Поле компаса" else "Поле компаса ${i + 1}", "MAG[$i]", "мГс", tt, mod)
+        }
+        if (vec.size < 2) return
+        val (v0, t0) = vec[0]
+        val ref = Series("", "", "", "", t0, FloatArray(t0.size))
+        for (i in 1 until vec.size) {
+            val (v, tt) = vec[i]
+            val ang = FloatArray(tt.size) { r ->
+                val j = ref.indexAt(tt[r])
+                val dot = v.first[r] * v0.first[j] + v.second[r] * v0.second[j] + v.third[r] * v0.third[j]
+                val n = sqrt(v.first[r] * v.first[r] + v.second[r] * v.second[r] + v.third[r] * v.third[r]) *
+                    sqrt(v0.first[j] * v0.first[j] + v0.second[j] * v0.second[j] + v0.third[j] * v0.third[j])
+                if (n < 1e-3f) 0f else Math.toDegrees(acos((dot / n).coerceIn(-1f, 1f)).toDouble()).toFloat()
+            }
+            val key = Ch.magDiff(i)
+            series[key] = Series(key, "Расхождение компасов 1 и ${i + 1}", "MAG[0]∠MAG[$i]", "°", tt, ang)
+        }
     }
 
     private fun modeReason(m: MessageTable, i: Int): String {

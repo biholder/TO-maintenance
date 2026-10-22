@@ -36,12 +36,15 @@ class LargeLogTest {
 
         private fun str(s: String, n: Int) { val b = s.toByteArray(); for (i in 0 until n) buf.put(if (i < b.size) b[i] else 0) }
 
-        fun write(name: String, vararg v: Number) {
+        fun write(name: String, vararg values: Any) {
             val (type, format) = fmts.getValue(name)
             buf.clear()
             buf.put(0xA3.toByte()).put(0x95.toByte()).put(type.toByte())
+            val v = values.map { it as? Number ?: 0 }
             format.forEachIndexed { i, c ->
                 when (c) {
+                    'N' -> str(values[i] as String, 16)
+                    'Z' -> str(values[i] as String, 64)
                     'Q' -> buf.putLong(v[i].toLong())
                     'B' -> buf.put(v[i].toInt().toByte())
                     'f' -> buf.putFloat(v[i].toFloat())

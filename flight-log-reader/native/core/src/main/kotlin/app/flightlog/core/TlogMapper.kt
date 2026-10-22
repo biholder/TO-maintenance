@@ -7,7 +7,8 @@ object TlogMapper {
     /** Пакеты с телеметрией, которые прореживаются до 10 Гц; события и параметры — нет. */
     private val DECIMATED = setOf(
         TlogParser.SYS_STATUS, TlogParser.GPS_RAW_INT, TlogParser.ATTITUDE, TlogParser.GLOBAL_POSITION_INT,
-        TlogParser.VFR_HUD, TlogParser.BATTERY_STATUS, TlogParser.VIBRATION,
+        TlogParser.VFR_HUD, TlogParser.BATTERY_STATUS, TlogParser.VIBRATION, TlogParser.RAW_IMU,
+        TlogParser.SERVO_OUTPUT_RAW, TlogParser.RC_CHANNELS, TlogParser.EKF_STATUS_REPORT,
     )
     private const val MIN_GAP_US = 80_000L
 
@@ -152,6 +153,23 @@ object TlogMapper {
                     put(Ch.VIBE_Z, t, b.getFloat(16).toDouble())
                     put(Ch.CLIP, t, (b.getInt(20).toLong() and 0xFFFFFFFFL).toDouble())
                 }
+                TlogParser.VFR_HUD -> put(Ch.THR, t, (b.getShort(18).toInt() and 0xFFFF).toDouble())
+                TlogParser.RAW_IMU -> {
+                    val x = b.getShort(20).toDouble(); val y = b.getShort(22).toDouble(); val z = b.getShort(24).toDouble()
+                    if (x != 0.0 || y != 0.0 || z != 0.0) put(Ch.MAG, t, kotlin.math.sqrt(x * x + y * y + z * z))
+                }
+                TlogParser.SERVO_OUTPUT_RAW -> if (b.get(20).toInt() == 0) {
+                    for (n in 1..8) put("out$n", t, (b.getShort(2 + n * 2).toInt() and 0xFFFF).toDouble())
+                }
+                TlogParser.RC_CHANNELS -> {
+                    val rssi = b.get(41).toInt() and 0xFF
+                    if (rssi != 255) put(Ch.RSSI, t, rssi * 100.0 / 254)
+                }
+                TlogParser.EKF_STATUS_REPORT -> {
+                    val v = DoubleArray(4) { b.getFloat(it * 4).toDouble() }
+                    put(Ch.EKF_VEL, t, v[0]); put(Ch.EKF_POS, t, v[1]); put(Ch.EKF_HGT, t, v[2]); put(Ch.EKF_MAG, t, v[3])
+                    put(Ch.EKF, t, v.max())
+                }
                 TlogParser.STATUSTEXT -> {
                     val sev = b.get(0).toInt() and 0xFF
                     val text = cstr(b, 1, 50)
@@ -184,6 +202,14 @@ object TlogMapper {
             Ch.PITCH to Triple("Тангаж", "ATTITUDE.pitch", "°"),
             Ch.YAW to Triple("Курс", "ATTITUDE.yaw", "°"),
             Ch.CLIMB to Triple("Верт. скорость", "GLOBAL_POSITION_INT.vz", "м/с"),
+            Ch.THR to Triple("Газ", "VFR_HUD.throttle", "%"),
+            Ch.RSSI to Triple("Сигнал RC", "RC_CHANNELS.rssi", "%"),
+            Ch.MAG to Triple("Поле компаса", "RAW_IMU.mag", "мГс"),
+            Ch.EKF to Triple("EKF: инновации", "EKF_STATUS_REPORT · макс.", ""),
+            Ch.EKF_VEL to Triple("EKF: скорость", "EKF_STATUS_REPORT.velocity_variance", ""),
+            Ch.EKF_POS to Triple("EKF: позиция", "EKF_STATUS_REPORT.pos_horiz_variance", ""),
+            Ch.EKF_HGT to Triple("EKF: высота", "EKF_STATUS_REPORT.pos_vert_variance", ""),
+            Ch.EKF_MAG to Triple("EKF: компас", "EKF_STATUS_REPORT.compass_variance", ""),
         )
         val series = LinkedHashMap<String, Series>()
         for ((key, m) in meta) {
@@ -194,6 +220,14 @@ object TlogMapper {
             val c = cols[Batteries.key(id, m)] ?: continue
             val k = Batteries.key(id, m)
             series[k] = Series(k, "${Batteries.label(id)} · ${m.title}", "BATTERY_STATUS[$id]", m.unit, c.first.toFloatArray(), c.second.toFloatArray())
+        }
+        // Выходы на моторы: какие из них моторы — по параметрам SERVOn_FUNCTION или типу рамы.
+        val pm = params.mapValues { it.value.value }
+        val heli = Motors.isHeli(pm, frame, firmware)
+        for ((out, motor) in Motors.outputs(pm, frame, vehicleType, heli)) {
+            val c = cols["out$out"] ?: continue
+            val k = Motors.key(motor)
+            series[k] = Series(k, Motors.label(motor), "SERVO_OUTPUT_RAW.servo${out}_raw", "мкс", c.first.toFloatArray(), c.second.toFloatArray())
         }
         val duration = ((lastUs - t0) / 1e6).toFloat()
         return FlightLog(

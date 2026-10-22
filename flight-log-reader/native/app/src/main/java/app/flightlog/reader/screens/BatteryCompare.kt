@@ -32,6 +32,8 @@ import app.flightlog.reader.AppViewModel
 import app.flightlog.reader.num
 import app.flightlog.reader.signed
 import app.flightlog.reader.ui.Chip
+import app.flightlog.reader.ui.ModeBands
+import app.flightlog.reader.ui.drawModeBands
 import app.flightlog.reader.ui.T
 import app.flightlog.reader.ui.Type
 import app.flightlog.reader.ui.bottomRule
@@ -46,7 +48,7 @@ private fun packColor(colors: List<Color>, i: Int) = colors[i % colors.size]
 
 /** Карточка сравнения нескольких АКБ одного полёта: наложенные графики и сводка. */
 @Composable
-fun BatteryCompareCard(vm: AppViewModel, log: FlightLog, packs: List<Int>) {
+fun BatteryCompareCard(vm: AppViewModel, log: FlightLog, packs: List<Int>, bands: ModeBands? = null) {
     val metrics = remember(log) { Batteries.metrics(log, packs) }
     if (metrics.isEmpty()) return
     val m = metrics[vm.batMetric.coerceIn(0, metrics.size - 1)]
@@ -79,6 +81,7 @@ fun BatteryCompareCard(vm: AppViewModel, log: FlightLog, packs: List<Int>) {
                         detectHorizontalDragGestures { change, _ -> vm.t = (change.position.x / size.width).coerceIn(0f, 1f) }
                     },
             ) {
+                drawModeBands(bands)
                 drawGrid(grid, 20.dp.toPx())
                 // Первая АКБ — сплошной линией поверх остальных.
                 data.asReversed().forEach { (p, d) ->

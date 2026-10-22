@@ -51,6 +51,10 @@ object Analyzer {
     const val VIBE_CRIT = 60f
     const val SATS_MIN = 10f
     const val HDOP_MAX = 1.5f
+    /** Порог отношения тестов инноваций EKF (как FS_EKF_THRESH по умолчанию). */
+    const val EKF_WARN = 0.8f
+    /** Слабый сигнал приёмника, %. */
+    const val RSSI_WARN = 30f
 
     fun analyze(log: FlightLog): Analysis {
         val armed = log.armTime ?: 0f
@@ -155,6 +159,9 @@ object Analyzer {
             }
         }
 
+        // Компас, EKF, моторы, сопротивление АКБ, радиоканал.
+        Checks(log, issues, healthy).runAll()
+
         // Прочие ошибки ERR.
         val handled = setOf(6, 7, 11)
         val errs = log.events.filter { it.source == "ERR" && !it.detail.endsWith("ECode 0") }
@@ -165,12 +172,13 @@ object Analyzer {
             issues += Issue(if (critical) Severity.CRITICAL else Severity.WARN,
                 ArduPilot.ERR_SUBSYS[sub] ?: "Ошибка подсистемы $sub",
                 list.first().time, list.last().time + 1,
-                "Зафиксировано ошибок: ${list.size}. Смотрите журнал событий.", null)
+                list.map { it.title.substringAfter(": ") }.distinct().take(3).joinToString("; ").replaceFirstChar { it.uppercase() } +
+                    ". Зафиксировано: ${list.size}. Подробности — в журнале событий.", null)
         }
         if (log.format == LogFormat.DATAFLASH || log.format == LogFormat.DATAFLASH_TEXT) {
-            if (bySub.keys.none { it in setOf(16, 17, 24) }) healthy += "EKF3"
-            if (3 !in bySub.keys) healthy += "Компас"
-            if (5 !in bySub.keys && 2 !in bySub.keys) healthy += "RC"
+            if (bySub.keys.none { it in setOf(16, 17, 24) } && Ch.EKF !in s) healthy += "EKF3"
+            if (3 !in bySub.keys && Ch.MAG !in s) healthy += "Компас"
+            if (5 !in bySub.keys && 2 !in bySub.keys && issues.none { it.channel == Ch.RSSI }) healthy += "RC"
         }
 
         // DJI: флаги контроллера, аварийные действия и серьёзные предупреждения приложения.
@@ -194,6 +202,7 @@ object Analyzer {
             if (titles.none { it.startsWith("Блокировка") || it.startsWith("Недостаточно") }) healthy += "Моторы"
         }
 
+        if (issues.any { it.channel == Ch.VOLT || it.channel?.startsWith("bat") == true }) healthy.remove("Батарея")
         issues.sortWith(compareByDescending<Issue> { it.severity }.thenBy { it.start })
         return Analysis(summary(log), issues, healthy)
     }

@@ -131,6 +131,22 @@ object Ch {
     const val YAW = "yaw"
     const val CLIMB = "climb"
     const val REM = "rem"
+    /** Газ (выход регулятора тяги), %. */
+    const val THR = "thr"
+    /** Уровень сигнала приёмника, %. */
+    const val RSSI = "rssi"
+    /** Модуль магнитного поля первого компаса, мГс; остальные — mag1, mag2… */
+    const val MAG = "mag"
+    /** Наибольшее из отношений тестов инноваций EKF (скорость, позиция, высота, компас). */
+    const val EKF = "ekf"
+    const val EKF_VEL = "ekfV"
+    const val EKF_POS = "ekfP"
+    const val EKF_HGT = "ekfH"
+    const val EKF_MAG = "ekfM"
+
+    fun mag(i: Int) = if (i == 0) MAG else "mag$i"
+    /** Угол между полями компаса 1 и компаса i+1, °. */
+    fun magDiff(i: Int) = "magdiff$i"
 }
 
 internal fun nearlyEqual(a: Float, b: Float): Boolean =

@@ -28,8 +28,12 @@ import java.io.File
 
 enum class Screen { LIBRARY, DECODE, FLIGHT, COMPARE, EXPORT }
 enum class FlightTab(val title: String) { SUMMARY("Сводка"), TRACK("Трек"), CHARTS("Графики"), EVENTS("События"), PARAMS("PARM") }
-enum class TrackBy(val title: String) { SPEED("Скорость"), ALT("Высота"), BATTERY("Батарея") }
+enum class TrackBy(val title: String) { SPEED("Скорость"), ALT("Высота"), BATTERY("Батарея"), CURRENT("Ток"), MODE("Режим") }
 enum class EvFilter(val title: String) { ALL("Все"), WARN("Предупреждения"), MODES("Режимы") }
+
+/** Скорости воспроизведения полёта. */
+val SPEEDS = listOf(1, 2, 5, 10, 30, 60)
+const val MAX_OVERLAY = 6
 
 class DecodeState(
     val fileName: String,
@@ -339,6 +343,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var speed by mutableStateOf(10)
         private set
     val channels = mutableStateListOf(Ch.ALT, Ch.SPD, Ch.VOLT, Ch.VIBE_Z)
+    /** Каналы на общем графике «Наложение». */
+    val overlay = mutableStateListOf<String>()
+    /** Общая шкала на графике наложения (если единицы совпадают). */
+    var overlayShared by mutableStateOf(true)
     var evFilter by mutableStateOf(EvFilter.ALL)
     var paramQuery by mutableStateOf("")
     var onlyChanged by mutableStateOf(false)
@@ -383,7 +391,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun cycleSpeed() { speed = when (speed) { 10 -> 30; 30 -> 60; else -> 10 } }
+    fun cycleSpeed() { speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.size] }
+
+    fun toggleOverlay(key: String) {
+        if (key in overlay) overlay.remove(key) else if (overlay.size < MAX_OVERLAY) overlay.add(key)
+    }
+
+    fun setOverlay(keys: List<String>) {
+        overlay.clear(); overlay.addAll(keys.take(MAX_OVERLAY))
+    }
 
     fun toggleChannel(key: String) { if (key in channels) channels.remove(key) else channels.add(key) }
 
