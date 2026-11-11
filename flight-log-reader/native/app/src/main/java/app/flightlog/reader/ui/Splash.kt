@@ -87,7 +87,7 @@ fun Splash(onDone: () -> Unit) {
             val k = phase(t, start, start + 0.6f)
             if (k <= 0f || k >= 1f) return@forEachIndexed
             val angle = -PI / 2 + i * (2 * PI / FIELDS.size) + 0.3
-            val dist = unit * (0.16f + 0.42f * smooth(k))
+            val dist = unit * (0.21f + 0.23f * smooth(k))
             val alpha = (if (k < 0.15f) k / 0.15f else 1f - phase(k, 0.55f, 1f)) * fadeOut
             val layout = measurer.measure(text, style.copy(color = Color.White.copy(alpha = alpha)))
             val p = Offset(c.x + (cos(angle) * dist).toFloat(), c.y + (sin(angle) * dist).toFloat())
