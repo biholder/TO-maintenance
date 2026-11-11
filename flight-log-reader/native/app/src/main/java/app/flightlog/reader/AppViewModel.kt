@@ -495,7 +495,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         reportCharts.clear(); reportCharts.addAll(DEFAULT_REPORT_CHARTS); saveReport()
     }
 
-    fun setReportParamMode(m: ParamMode) {
+    fun chooseReportParamMode(m: ParamMode) {
         // Переход к выбору вручную с пустым списком — начать с того, что было в отчёте.
         if (m == ParamMode.SELECTED && reportParamNames.isEmpty()) selectParamsManually() else reportParamMode = m
         saveReport()

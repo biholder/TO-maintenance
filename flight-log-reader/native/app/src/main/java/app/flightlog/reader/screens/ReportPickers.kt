@@ -173,7 +173,7 @@ fun ReportParamsScreen(vm: AppViewModel) {
     Column(Modifier.fillMaxSize()) {
         PickerHeader(vm, "Параметры в отчёте", "В отчёт попадёт: $count из ${all.size}")
         Column(Modifier.padding(horizontal = 16.dp)) {
-            Segmented(ParamMode.entries.map { it.title }, mode.ordinal, { vm.setReportParamMode(ParamMode.entries[it]) })
+            Segmented(ParamMode.entries.map { it.title }, mode.ordinal, { vm.chooseReportParamMode(ParamMode.entries[it]) })
             T(when (mode) {
                 ParamMode.CHANGED -> "Параметры, которые отличаются от значений по умолчанию. Отметьте любой — перейдёте к выбору вручную."
                 ParamMode.ALL -> "Все параметры из лога, в отчёте — в две колонки."
