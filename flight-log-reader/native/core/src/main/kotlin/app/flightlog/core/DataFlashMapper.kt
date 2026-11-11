@@ -201,7 +201,7 @@ object DataFlashMapper {
             vehicle = VehicleInfo("ArduPilot", vehicleType, firmware, board, frame, gps),
             startUtcMillis = startUtc, duration = tEnd, series = series, track = track,
             events = events, modes = modes, params = params, armTime = armT, disarmTime = disarmT,
-            messageCount = r.messageCount,
+            messageCount = r.messageCount, timeOriginUs = t0,
         )
     }
 

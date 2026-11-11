@@ -20,7 +20,7 @@ class TextLogParser(
 ) {
     private class Fmt(val name: String, val format: String, val columns: List<String>) {
         val hasTime = columns.firstOrNull() == "TimeUS"
-        val instanceIdx = columns.indexOfFirst { it == "I" || it == "Inst" || it == "Instance" || it == "IMU" }
+        val instanceIdx = columns.indexOfFirst { it == "I" || it == "Inst" || it == "Instance" || it == "IMU" || it == "C" }
             .takeIf { it > 0 && format.getOrNull(it) in setOf('B', 'b') } ?: -1
         val lastKept = HashMap<String, Long>()
         val lastTextCol = format.indexOfLast { it in TEXT }

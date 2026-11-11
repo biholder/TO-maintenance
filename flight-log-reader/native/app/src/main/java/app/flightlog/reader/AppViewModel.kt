@@ -1,6 +1,9 @@
 package app.flightlog.reader
 
 import app.flightlog.reader.map.MapLayer
+import app.flightlog.core.LogFields
+import app.flightlog.reader.export.ParamMode
+import app.flightlog.reader.export.ReportOptions
 import app.flightlog.reader.map.MapTiles
 import android.app.Application
 import android.net.Uri
@@ -26,7 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-enum class Screen { LIBRARY, DECODE, FLIGHT, COMPARE, EXPORT }
+enum class Screen { LIBRARY, DECODE, FLIGHT, COMPARE, EXPORT, REPORT_CHARTS, REPORT_PARAMS }
 enum class FlightTab(val title: String) { SUMMARY("Сводка"), TRACK("Трек"), CHARTS("Графики"), EVENTS("События"), PARAMS("PARM") }
 enum class TrackBy(val title: String) { SPEED("Скорость"), ALT("Высота"), BATTERY("Батарея"), CURRENT("Ток"), MODE("Режим") }
 enum class EvFilter(val title: String) { ALL("Все"), WARN("Предупреждения"), MODES("Режимы") }
@@ -37,6 +40,9 @@ sealed interface FullChart {
     data object Overlay : FullChart
     data object Batteries : FullChart
 }
+
+/** Графики отчёта по умолчанию. */
+val DEFAULT_REPORT_CHARTS = listOf(Ch.ALT, Ch.SPD, Ch.VOLT, Ch.CURR, Ch.VIBE_Z, Ch.SATS)
 
 /** Скорости воспроизведения полёта. */
 val SPEEDS = listOf(1, 2, 5, 10, 30, 60)
@@ -459,6 +465,86 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // Состав PDF-отчёта: графики (каналы PLOV или любые поля лога) и параметры. Запоминается между полётами.
+    val reportCharts = mutableStateListOf<String>().apply {
+        addAll(prefs.getString("report_charts", null)?.split('\n')?.filter { it.isNotEmpty() } ?: DEFAULT_REPORT_CHARTS)
+    }
+    var reportParamMode by mutableStateOf(
+        prefs.getString("report_param_mode", null)?.let { n -> ParamMode.entries.firstOrNull { it.name == n } } ?: ParamMode.CHANGED)
+        private set
+    val reportParamNames = mutableStateListOf<String>().apply {
+        addAll(prefs.getString("report_params", null)?.split('\n')?.filter { it.isNotEmpty() }.orEmpty())
+    }
+    var chartQuery by mutableStateOf("")
+    var reportParamQuery by mutableStateOf("")
+
+    private fun saveReport() {
+        prefs.edit()
+            .putString("report_charts", reportCharts.joinToString("\n"))
+            .putString("report_param_mode", reportParamMode.name)
+            .putString("report_params", reportParamNames.joinToString("\n"))
+            .apply()
+    }
+
+    fun toggleReportChart(key: String) {
+        if (key in reportCharts) reportCharts.remove(key) else reportCharts.add(key)
+        saveReport()
+    }
+
+    fun resetReportCharts() {
+        reportCharts.clear(); reportCharts.addAll(DEFAULT_REPORT_CHARTS); saveReport()
+    }
+
+    fun setReportParamMode(m: ParamMode) {
+        // Переход к выбору вручную с пустым списком — начать с того, что было в отчёте.
+        if (m == ParamMode.SELECTED && reportParamNames.isEmpty()) selectParamsManually() else reportParamMode = m
+        saveReport()
+    }
+
+    /** Выбор вручную, начиная с параметров текущего режима (изменённых или всех). */
+    fun selectParamsManually() {
+        val params = flight?.log?.params.orEmpty()
+        if (reportParamMode != ParamMode.SELECTED) {
+            reportParamNames.clear()
+            reportParamNames.addAll(params.filter { reportParamMode == ParamMode.ALL || it.changed }.map { it.name })
+        }
+        reportParamMode = ParamMode.SELECTED
+        saveReport()
+    }
+
+    fun toggleReportParam(name: String) {
+        if (name in reportParamNames) reportParamNames.remove(name) else reportParamNames.add(name)
+        reportParamMode = ParamMode.SELECTED
+        saveReport()
+    }
+
+    fun clearReportParams() { reportParamNames.clear(); saveReport() }
+
+    /** Все поля лога ArduPilot для выбора графиков (читаются по требованию). */
+    var fieldCatalog by mutableStateOf<List<LogFields.Message>?>(null)
+        private set
+    var fieldCatalogError by mutableStateOf<String?>(null)
+        private set
+    private var catalogFor: String? = null
+
+    fun loadFieldCatalog() {
+        val e = flightEntry ?: return
+        if (!LogFields.supported(e.format) || catalogFor == e.id) return
+        catalogFor = e.id
+        fieldCatalog = null
+        fieldCatalogError = null
+        viewModelScope.launch {
+            try {
+                fieldCatalog = withContext(Dispatchers.IO) { LogFields.catalog(repo.fileOf(e), e.format) }
+            } catch (ex: kotlinx.coroutines.CancellationException) {
+                throw ex
+            } catch (ex: Throwable) {
+                fieldCatalogError = errorText(ex)
+                catalogFor = null
+            }
+        }
+    }
+
     // Экспорт.
     var exFmt by mutableStateOf(ExportFormat.PDF)
     val exSec = mutableStateListOf(*PdfSection.entries.toTypedArray())
@@ -480,7 +566,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val ctx = getApplication<Application>()
                 val file = withContext(Dispatchers.Default) {
-                    Exporter.write(ctx, p, exFmt, exSec.toSet(), exportFileName(), units, mapLayer)
+                    // Поля лога, выбранные для графиков отчёта, дочитываются из файла.
+                    val fieldKeys = reportCharts.filter { LogFields.isField(it) }
+                    val e = flightEntry
+                    val fields = if (exFmt == ExportFormat.PDF && PdfSection.CHARTS in exSec && fieldKeys.isNotEmpty() &&
+                        e != null && LogFields.supported(e.format)) {
+                        LogFields.extract(repo.fileOf(e), e.format, fieldKeys, p.log.timeOriginUs)
+                    } else emptyMap()
+                    val opts = ReportOptions(reportCharts.toList(), fields, reportParamMode, reportParamNames.toSet())
+                    Exporter.write(ctx, p, exFmt, exSec.toSet(), exportFileName(), units, mapLayer, opts)
                 }
                 if (share) onShare(file, exFmt.mime)
                 else {

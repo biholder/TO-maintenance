@@ -20,18 +20,38 @@ enum class ExportFormat(val title: String, val description: String, val ext: Str
 }
 
 enum class PdfSection(val title: String) {
-    SUMMARY("Сводка и борт"), TRACK("Карта трека"), CHARTS("Графики каналов"),
-    EVENTS("Журнал событий"), PARAMS("Изменённые параметры"),
+    SUMMARY("Сводка и борт"), TRACK("Карта трека"), CHARTS("Графики"),
+    EVENTS("Журнал событий"), PARAMS("Параметры"),
+}
+
+/** Какие параметры попадают в отчёт. */
+enum class ParamMode(val title: String) { CHANGED("Изменённые"), ALL("Все"), SELECTED("Выбранные") }
+
+/**
+ * Состав отчёта: [charts] — ключи каналов лога или полей [app.flightlog.core.LogFields] в нужном порядке,
+ * [fields] — уже прочитанные ряды для полей, параметры — по [paramMode].
+ */
+class ReportOptions(
+    val charts: List<String>,
+    val fields: Map<String, app.flightlog.core.Series> = emptyMap(),
+    val paramMode: ParamMode = ParamMode.CHANGED,
+    val paramNames: Set<String> = emptySet(),
+) {
+    fun params(log: app.flightlog.core.FlightLog): List<app.flightlog.core.Param> = when (paramMode) {
+        ParamMode.CHANGED -> log.params.filter { it.changed }
+        ParamMode.ALL -> log.params
+        ParamMode.SELECTED -> log.params.filter { it.name in paramNames }
+    }
 }
 
 object Exporter {
     fun dir(ctx: Context) = File(ctx.cacheDir, "exports").apply { mkdirs() }
 
     fun write(ctx: Context, p: LogReader.Parsed, fmt: ExportFormat, sections: Set<PdfSection>, name: String, units: Units,
-              mapLayer: MapLayer = MapLayer.NONE): File {
+              mapLayer: MapLayer = MapLayer.NONE, opts: ReportOptions = ReportOptions(emptyList())): File {
         val out = File(dir(ctx), name)
         when (fmt) {
-            ExportFormat.PDF -> out.outputStream().use { PdfReport.write(p, sections, units, it, mapLayer) }
+            ExportFormat.PDF -> out.outputStream().use { PdfReport.write(p, sections, units, it, mapLayer, opts) }
             ExportFormat.CSV -> out.writeText(Export.csv(p.log))
             ExportFormat.KML -> out.writeText(Export.kml(p.log))
             ExportFormat.GPX -> out.writeText(Export.gpx(p.log))

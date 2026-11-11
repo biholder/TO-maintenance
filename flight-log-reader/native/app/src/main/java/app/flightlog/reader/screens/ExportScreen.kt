@@ -42,6 +42,9 @@ import app.flightlog.reader.ui.Type
 import app.flightlog.reader.ui.bottomRule
 import app.flightlog.reader.ui.card
 import app.flightlog.reader.ui.hairline
+import app.flightlog.core.LogFields
+import app.flightlog.reader.Screen
+import app.flightlog.reader.export.ParamMode
 import app.flightlog.reader.ui.landscape
 import app.flightlog.reader.ui.tk
 import app.flightlog.reader.ui.topRule
@@ -89,6 +92,22 @@ fun ExportScreen(vm: AppViewModel, share: (File, String) -> Unit) {
                     }
                     Thumbnail(vm.exSec.toSet())
                 }
+                // Состав разделов «Графики» и «Параметры».
+                if (PdfSection.CHARTS in vm.exSec) {
+                    val n = vm.reportCharts.count { it in p.log.series || LogFields.isField(it) }
+                    ChooseRow("Графики", if (n == 0) "не выбраны" else "$n — " + vm.reportCharts.take(4).joinToString(", ") { k ->
+                        p.log.series[k]?.label ?: LogFields.parse(k)?.label ?: k
+                    } + if (vm.reportCharts.size > 4) "…" else "") { vm.push(Screen.REPORT_CHARTS) }
+                }
+                if (PdfSection.PARAMS in vm.exSec) {
+                    val ps = p.log.params
+                    val n = when (vm.reportParamMode) {
+                        ParamMode.CHANGED -> ps.count { it.changed }
+                        ParamMode.ALL -> ps.size
+                        ParamMode.SELECTED -> ps.count { it.name in vm.reportParamNames }
+                    }
+                    ChooseRow("Параметры", "${vm.reportParamMode.title.lowercase()} · $n") { vm.push(Screen.REPORT_PARAMS) }
+                }
             }
             Column(Modifier.padding(top = if (wide && vm.exFmt != ExportFormat.PDF) 0.dp else 20.dp).fillMaxWidth().topRule(tk.dv).padding(top = 12.dp)) {
                 Kicker("Файл")
@@ -115,6 +134,19 @@ fun ExportScreen(vm: AppViewModel, share: (File, String) -> Unit) {
             PrimaryButton(if (vm.exporting) "Готовлю…" else "Сохранить", { vm.export(false, share) }, Modifier.weight(1f), enabled = ready,
                 leading = { Icon(Icons.Download, tk.onac, size = 18.dp) })
         }
+    }
+}
+
+/** Строка-переход к выбору содержимого раздела. */
+@Composable
+private fun ChooseRow(title: String, value: String, onClick: () -> Unit) {
+    Row(Modifier.padding(top = 8.dp).fillMaxWidth().hairline(tk.dv).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            T(title, Type.body(15.sp, FontWeight.SemiBold))
+            T(value, Type.body(13.sp), tk.mu, maxLines = 2)
+        }
+        Icon(Icons.ChevronRight, tk.mu, size = 20.dp)
     }
 }
 

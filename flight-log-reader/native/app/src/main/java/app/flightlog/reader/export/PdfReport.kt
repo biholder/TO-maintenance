@@ -91,7 +91,8 @@ object PdfReport {
         this.color = color; strokeWidth = w; style = Paint.Style.STROKE
     }
 
-    fun write(p: LogReader.Parsed, sections: Set<PdfSection>, units: Units, out: OutputStream, mapLayer: MapLayer = MapLayer.NONE) {
+    fun write(p: LogReader.Parsed, sections: Set<PdfSection>, units: Units, out: OutputStream, mapLayer: MapLayer = MapLayer.NONE,
+              opts: ReportOptions = ReportOptions(emptyList())) {
         val doc = PdfDocument()
         val x = Ctx(doc)
         val log = p.log
@@ -176,13 +177,18 @@ object PdfReport {
         }
 
         if (PdfSection.CHARTS in sections) {
-            heading(x, "ГРАФИКИ КАНАЛОВ")
-            for (key in listOf(Ch.ALT, Ch.SPD, Ch.VOLT, Ch.CURR, Ch.VIBE_Z, Ch.SATS)) {
-                val s = log.series[key] ?: continue
-                x.ensure(96f)
+            heading(x, "ГРАФИКИ")
+            val chosen = opts.charts.mapNotNull { k -> log.series[k] ?: opts.fields[k] }
+            if (chosen.isEmpty()) text(x, "Графики для отчёта не выбраны.", MU)
+            for (s in chosen) {
+                x.ensure(104f)
                 val c = x.c!!
-                c.drawText("${s.label} · ${s.message}", M, x.y, paint(TX, 9.5f, true))
-                c.drawText("${num(s.min, 1)} … ${num(s.max, 1)} ${s.unit}", W - M - 120, x.y, paint(MU, 8.5f))
+                val digits = if (s.max - s.min < 10f) 2 else 1
+                val unit = s.unit.let { if (it.isEmpty()) "" else " $it" }
+                c.drawText(s.label + if (s.message != s.label) " · ${s.message}" else "", M, x.y, paint(TX, 9.5f, true))
+                val range = "${num(s.min, digits)} … ${num(s.max, digits)}$unit"
+                val rp = paint(MU, 8.5f)
+                c.drawText(range, W - M - rp.measureText(range), x.y, rp)
                 val top = x.y + 6
                 val h = 64f
                 val w = W - 2 * M
@@ -192,16 +198,25 @@ object PdfReport {
                 val span = (s.max - lo).takeIf { it > 1e-6f } ?: 1f
                 val path = Path()
                 for (i in d.time.indices) {
-                    val px = M + d.time[i] / log.duration * w
+                    val px = M + (d.time[i] / log.duration).coerceIn(0f, 1f) * w
                     val py = top + h - (d.values[i] - lo) / span * (h - 6) - 3
                     if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
                 }
-                c.drawPath(path, line(if (key == Ch.VIBE_Z) WR else AC, 1f))
-                if (key == Ch.VIBE_Z && s.max > 30f) {
+                val vibe = s.key.startsWith("vibe")
+                c.drawPath(path, line(if (vibe) WR else AC, 1f))
+                if (vibe && s.max > 30f) {
                     val ty = top + h - (30f - lo) / span * (h - 6) - 3
                     c.drawLine(M, ty, M + w, ty, line(CR, 0.75f).apply { pathEffect = DashPathEffect(floatArrayOf(4f, 3f), 0f) })
                 }
-                x.y = top + h + 18
+                // Шкала времени: начало, середина, конец.
+                val tp = paint(MU, 7.5f)
+                for (k in 0..2) {
+                    val tm = log.duration * k / 2f
+                    val label = clock(tm)
+                    val lx = (M + w * k / 2f - tp.measureText(label) / 2f).coerceIn(M, M + w - tp.measureText(label))
+                    c.drawText(label, lx, top + h + 10, tp)
+                }
+                x.y = top + h + 26
             }
         }
 
@@ -221,14 +236,31 @@ object PdfReport {
         }
 
         if (PdfSection.PARAMS in sections) {
-            heading(x, "ИЗМЕНЁННЫЕ ПАРАМЕТРЫ")
-            val ch = log.params.filter { it.changed }
-            if (ch.isEmpty()) text(x, if (log.params.isEmpty()) "Параметры в логе не найдены." else "Все параметры по умолчанию.", MU)
-            ch.forEach { pr ->
+            val list = opts.params(log)
+            heading(x, when (opts.paramMode) {
+                ParamMode.CHANGED -> "ИЗМЕНЁННЫЕ ПАРАМЕТРЫ"
+                ParamMode.ALL -> "ВСЕ ПАРАМЕТРЫ · ${list.size}"
+                ParamMode.SELECTED -> "ПАРАМЕТРЫ"
+            })
+            if (list.isEmpty()) text(x, when {
+                log.params.isEmpty() -> "Параметры в логе не найдены."
+                opts.paramMode == ParamMode.CHANGED -> "Все параметры по умолчанию."
+                else -> "Параметры для отчёта не выбраны."
+            }, MU)
+            // Длинный список — в две колонки; значение по умолчанию — только у изменённых.
+            val cols = if (list.size > 30) 2 else 1
+            val colW = (W - 2 * M) / cols
+            list.chunked(cols).forEach { row ->
                 x.ensure(14f)
-                x.c!!.drawText(pr.name, M, x.y, paint(TX, 9f, true))
-                x.c!!.drawText(app.flightlog.core.Export.paramValue(pr.value), M + 180, x.y, paint(AC, 9f))
-                x.c!!.drawText("по умолч. ${pr.default?.let { app.flightlog.core.Export.paramValue(it) } ?: "—"}", M + 280, x.y, paint(WR, 9f))
+                row.forEachIndexed { i, pr ->
+                    val left = M + i * colW
+                    x.c!!.drawText(pr.name, left, x.y, paint(TX, 9f, true))
+                    x.c!!.drawText(app.flightlog.core.Export.paramValue(pr.value), left + (if (cols == 2) 140f else 180f), x.y,
+                        paint(if (pr.changed) WR else AC, 9f))
+                    if (cols == 1 && pr.changed) {
+                        x.c!!.drawText("по умолч. ${app.flightlog.core.Export.paramValue(pr.default!!)}", left + 280, x.y, paint(MU, 9f))
+                    }
+                }
                 x.y += 13
             }
         }

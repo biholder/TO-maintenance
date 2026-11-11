@@ -107,6 +107,8 @@ class FlightLog(
     val armTime: Float?,
     val disarmTime: Float?,
     val messageCount: Long,
+    /** DataFlash: TimeUS, принятый за ноль шкалы времени (чтобы дочитывать поля лога на той же шкале). */
+    val timeOriginUs: Double? = null,
 ) {
     fun modeAt(t: Float): String = modes.lastOrNull { it.time <= t }?.name ?: "—"
     fun isArmedAt(t: Float): Boolean =

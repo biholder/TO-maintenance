@@ -33,6 +33,8 @@ import app.flightlog.reader.screens.ExportScreen
 import app.flightlog.reader.screens.FlightScreen
 import app.flightlog.reader.screens.ImportSheet
 import app.flightlog.reader.screens.LibraryScreen
+import app.flightlog.reader.screens.ReportChartsScreen
+import app.flightlog.reader.screens.ReportParamsScreen
 import app.flightlog.reader.ui.AppTheme
 import app.flightlog.reader.ui.T
 import app.flightlog.reader.ui.Type
@@ -102,6 +104,8 @@ private fun Root(vm: AppViewModel, share: (File, String) -> Unit) {
                     Screen.FLIGHT -> FlightScreen(vm)
                     Screen.COMPARE -> CompareScreen(vm)
                     Screen.EXPORT -> ExportScreen(vm, share)
+                    Screen.REPORT_CHARTS -> ReportChartsScreen(vm)
+                    Screen.REPORT_PARAMS -> ReportParamsScreen(vm)
                 }
             }
         }
