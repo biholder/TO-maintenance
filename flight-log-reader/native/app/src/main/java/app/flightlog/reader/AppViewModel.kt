@@ -214,6 +214,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // Настройки: API-ключ DJI Open API для зашифрованных логов DJI v13+.
     private val prefs = app.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
+
+    /**
+     * Заставка уже показана. ViewModel живёт, пока приложение не закрыто: при сворачивании
+     * и повороте экрана заставка не повторяется, при новом запуске — показывается снова.
+     */
+    var splashShown by mutableStateOf(false)
     var djiApiKey by mutableStateOf(prefs.getString("dji_api_key", "") ?: "")
         private set
 

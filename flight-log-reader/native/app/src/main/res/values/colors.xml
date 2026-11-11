@@ -2,4 +2,5 @@
 <resources>
     <color name="ic_bg">#5980A6</color>
     <color name="bg">#f2f2f3</color>
+    <color name="splash">#5A5D62</color>
 </resources>

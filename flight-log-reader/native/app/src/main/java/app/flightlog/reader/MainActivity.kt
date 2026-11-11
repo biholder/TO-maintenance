@@ -13,6 +13,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.CompositionLocalProvider
 import app.flightlog.reader.ui.LocalLandscape
+import app.flightlog.reader.ui.Splash
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -110,6 +114,12 @@ private fun Root(vm: AppViewModel, share: (File, String) -> Unit) {
             }
         }
         if (vm.sheet) ImportSheet(vm)
+        if (!vm.splashShown) {
+            // Поверх всего экрана, касания до конца заставки не доходят до интерфейса.
+            Box(Modifier.fillMaxSize().clickable(remember { MutableInteractionSource() }, null) {}) {
+                Splash { vm.splashShown = true }
+            }
+        }
         vm.toast?.let { msg ->
             Box(Modifier.fillMaxSize().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 96.dp), contentAlignment = Alignment.BottomCenter) {
                 Box(Modifier.background(tk.tx, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 12.dp)) {
