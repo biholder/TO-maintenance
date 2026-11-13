@@ -40,7 +40,7 @@ fun durationText(sec: Float): String {
 
 fun dateText(utcMillis: Long?): String {
     if (utcMillis == null) return "—"
-    return SimpleDateFormat("d MMM, HH:mm", RU).format(Date(utcMillis)).replace(".", "")
+    return SimpleDateFormat("d MMM yyyy, HH:mm", RU).format(Date(utcMillis)).replace(".", "")
 }
 
 fun dateTimeFull(utcMillis: Long?): String {
