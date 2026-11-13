@@ -181,13 +181,21 @@ private fun LogRow(vm: AppViewModel, e: LogEntry) {
                     Box(Modifier.hairline(tk.dv, radius = 6.dp).padding(horizontal = 5.dp, vertical = 1.dp)) {
                         T(".${e.format.ext}", Type.cond(12.sp, 0.5.sp), tk.act)
                     }
+                    if (e.tail.isNotBlank()) {
+                        Box(Modifier.padding(start = 8.dp).background(tk.ac1, RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 1.dp)) {
+                            T(e.tail, Type.cond(13.sp, 0.3.sp), tk.act, maxLines = 1)
+                        }
+                    }
                     T(e.autopilot.ifEmpty { "—" }, Type.body(13.sp), tk.mu, Modifier.padding(start = 8.dp).weight(1f), maxLines = 1)
                     T(dateText(e.startUtc ?: e.importedAt), Type.body(13.sp), tk.mu)
                 }
                 Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.Bottom) {
-                    T(e.fileName, Type.body(16.5.sp, FontWeight.SemiBold), maxLines = 1)
+                    T(e.displayName, Type.body(16.5.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f, fill = false), maxLines = 1)
                     T(listOf(e.board, e.firmware).filter { it.isNotEmpty() }.joinToString(" · ").ifEmpty { e.vehicleType },
                         Type.body(13.5.sp), tk.mu, Modifier.padding(start = 8.dp, bottom = 1.dp).weight(1f), maxLines = 1)
+                }
+                if (e.note.isNotBlank()) {
+                    T(e.note, Type.body(13.sp), tk.mu, Modifier.padding(top = 4.dp), maxLines = 2)
                 }
                 Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     val (dv, du) = u.dist(e.distanceM)
@@ -199,6 +207,7 @@ private fun LogRow(vm: AppViewModel, e: LogEntry) {
         }
         if (menu) {
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SecondaryButton("Изменить", { menu = false; vm.editing = e }, Modifier.weight(1f), height = 40.dp)
                 SecondaryButton("Открыть", { menu = false; vm.openFlight(e) }, Modifier.weight(1f), height = 40.dp)
                 SecondaryButton("Удалить", { menu = false; vm.delete(e) }, Modifier.weight(1f), height = 40.dp,
                     leading = { Icon(Icons.Trash, tk.cr, size = 18.dp) })

@@ -43,6 +43,7 @@ import app.flightlog.reader.screens.DecodeScreen
 import app.flightlog.reader.screens.ExportScreen
 import app.flightlog.reader.screens.FlightScreen
 import app.flightlog.reader.screens.ImportSheet
+import app.flightlog.reader.screens.LabelEditor
 import app.flightlog.reader.screens.LibraryScreen
 import app.flightlog.reader.screens.ReportChartsScreen
 import app.flightlog.reader.screens.ReportParamsScreen
@@ -128,7 +129,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun Root(vm: AppViewModel, share: (File, String) -> Unit, requestNotifications: () -> Unit) {
-    BackHandler(enabled = vm.stack.size > 1 || vm.sheet || vm.compareMode || vm.fullChart != null) { vm.back() }
+    BackHandler(enabled = vm.stack.size > 1 || vm.sheet || vm.compareMode || vm.fullChart != null || vm.editing != null) { vm.back() }
     Box(Modifier.fillMaxSize().background(tk.bg)) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             CompositionLocalProvider(LocalLandscape provides (maxWidth > maxHeight)) {
@@ -145,6 +146,7 @@ private fun Root(vm: AppViewModel, share: (File, String) -> Unit, requestNotific
             }
         }
         if (vm.sheet) ImportSheet(vm)
+        vm.editing?.let { LabelEditor(vm, it) }
         if (!vm.splashShown) {
             // Поверх всего экрана, касания до конца заставки не доходят до интерфейса.
             Box(Modifier.fillMaxSize().clickable(remember { MutableInteractionSource() }, null) {}) {

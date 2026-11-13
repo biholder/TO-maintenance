@@ -101,9 +101,15 @@ object PdfReport {
         x.newPage()
         // Заголовок.
         x.c!!.drawText("PLOV · ОТЧЁТ О ПОЛЁТЕ", M, x.y + 10, paint(MU, 9f, true).apply { letterSpacing = 0.16f })
-        x.c!!.drawText(log.fileName, M, x.y + 36, paint(TX, 24f, true))
-        x.c!!.drawText("${log.vehicle.autopilot} ${log.format.ext} · ${dateTimeFull(log.startUtcMillis)}", M, x.y + 54, paint(MU, 10f))
+        x.c!!.drawText(opts.title.ifBlank { log.fileName }, M, x.y + 36, paint(TX, 24f, true))
+        x.c!!.drawText(listOfNotNull(opts.tail.takeIf { it.isNotBlank() }?.let { "Борт $it" },
+            "${log.vehicle.autopilot} ${log.format.ext}", dateTimeFull(log.startUtcMillis)).joinToString(" · "),
+            M, x.y + 54, paint(MU, 10f))
         x.y += 72
+        if (opts.note.isNotBlank()) {
+            opts.note.lines().filter { it.isNotBlank() }.forEach { wrap(x, it.trim(), TX, 10f, M) }
+            x.y += 6
+        }
         x.c!!.drawLine(M, x.y, W - M, x.y, line(TX, 1f))
         x.y += 16
 
@@ -133,7 +139,8 @@ object PdfReport {
                 "Мин. напряжение" to "${num(s.minVoltage, 2)} В",
             ))
             heading(x, "БОРТ")
-            kv(x, listOf(
+            kv(x, listOfNotNull(
+                opts.tail.takeIf { it.isNotBlank() }?.let { "Борт" to it },
                 "Контроллер" to log.vehicle.board.ifEmpty { "—" },
                 "Прошивка" to log.vehicle.firmware.ifEmpty { "—" },
                 "Рама" to log.vehicle.frame.ifEmpty { log.vehicle.vehicleType.ifEmpty { "—" } },

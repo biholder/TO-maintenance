@@ -59,7 +59,7 @@ fun ExportScreen(vm: AppViewModel, share: (File, String) -> Unit) {
             IconBox(onClick = { vm.back() }, bordered = false) { Icon(Icons.ArrowLeft, tk.tx) }
             Column(Modifier.padding(start = 6.dp)) {
                 T("Экспорт и отчёт", Type.cond(22.sp))
-                T(p.log.fileName, Type.body(13.sp), tk.mu)
+                T(vm.flightEntry?.displayName ?: p.log.fileName, Type.body(13.sp), tk.mu)
             }
         }
         val formats: @Composable () -> Unit = {

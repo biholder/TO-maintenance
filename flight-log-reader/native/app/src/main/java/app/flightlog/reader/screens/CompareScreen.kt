@@ -131,7 +131,8 @@ private fun FlightCard(tag: String, e: LogEntry, color: Color, dashed: Boolean, 
                     pathEffect = if (dashed) androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 6f)) else null)
             }
         }
-        T(e.fileName, Type.body(15.sp, FontWeight.SemiBold), modifier = Modifier.padding(top = 6.dp), maxLines = 1)
+        T(e.displayName, Type.body(15.sp, FontWeight.SemiBold), modifier = Modifier.padding(top = 6.dp), maxLines = 1)
+        if (e.tail.isNotBlank()) T("Борт ${e.tail}", Type.body(13.sp), tk.act, maxLines = 1)
         T(dateText(e.startUtc ?: e.importedAt), Type.body(13.sp), tk.mu)
         T(durationText(e.flightTime), Type.body(13.sp), tk.mu)
     }

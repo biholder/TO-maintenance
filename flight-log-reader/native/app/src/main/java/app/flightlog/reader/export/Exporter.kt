@@ -36,6 +36,10 @@ class ReportOptions(
     val fields: Map<String, app.flightlog.core.Series> = emptyMap(),
     val paramMode: ParamMode = ParamMode.CHANGED,
     val paramNames: Set<String> = emptySet(),
+    /** Подписи полёта из библиотеки. */
+    val title: String = "",
+    val tail: String = "",
+    val note: String = "",
 ) {
     fun params(log: app.flightlog.core.FlightLog): List<app.flightlog.core.Param> = when (paramMode) {
         ParamMode.CHANGED -> log.params.filter { it.changed }

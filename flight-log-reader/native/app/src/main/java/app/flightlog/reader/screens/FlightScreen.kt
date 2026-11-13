@@ -3,6 +3,7 @@ package app.flightlog.reader.screens
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -56,6 +57,7 @@ import app.flightlog.reader.ui.hairline
 import app.flightlog.reader.ui.tk
 import app.flightlog.reader.ui.topRule
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun FlightScreen(vm: AppViewModel) {
     val e = vm.flightEntry ?: return
@@ -75,9 +77,12 @@ fun FlightScreen(vm: AppViewModel) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = if (wide) 2.dp else 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             IconBox(onClick = { vm.back() }, bordered = false) { Icon(Icons.ArrowLeft, tk.tx) }
-            Column(if (wide) Modifier.widthIn(max = 220.dp).padding(horizontal = 6.dp) else Modifier.weight(1f).padding(horizontal = 6.dp)) {
-                T(e.fileName, Type.cond(if (wide) 17.sp else 20.sp), maxLines = 1)
-                T("${e.autopilot} ${e.format.ext} · ${dateText(e.startUtc ?: e.importedAt)}", Type.body(if (wide) 12.sp else 13.sp), tk.mu, maxLines = 1)
+            // Удержание заголовка — изменить название, борт и комментарий.
+            Column((if (wide) Modifier.widthIn(max = 220.dp) else Modifier.weight(1f))
+                .combinedClickable(onClick = {}, onLongClick = { vm.editing = e }).padding(horizontal = 6.dp)) {
+                T(e.displayName, Type.cond(if (wide) 17.sp else 20.sp), maxLines = 1)
+                T(listOfNotNull(e.tail.takeIf { it.isNotBlank() }, "${e.autopilot} ${e.format.ext}", dateText(e.startUtc ?: e.importedAt))
+                    .joinToString(" · "), Type.body(if (wide) 12.sp else 13.sp), tk.mu, maxLines = 1)
             }
             if (wide && p != null) FlightTabs(vm, p, Modifier.weight(1f))
             else if (wide) Box(Modifier.weight(1f))

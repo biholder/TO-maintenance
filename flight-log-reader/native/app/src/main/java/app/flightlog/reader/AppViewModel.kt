@@ -96,6 +96,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun push(s: Screen) { stack.add(s) }
     fun back(): Boolean {
         if (sheet) { sheet = false; return true }
+        if (editing != null) { editing = null; return true }
         if (fullChart != null) { fullChart = null; return true }
         if (stack.size <= 1) {
             if (compareMode) { compareMode = false; picked.clear(); return true }
@@ -144,12 +145,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Запись, подписи которой сейчас редактируются (окно поверх экрана). */
+    var editing by mutableStateOf<LogEntry?>(null)
+
+    fun saveLabels(e: LogEntry, title: String, tail: String, note: String) {
+        // Название, совпадающее с именем файла, не храним — пустое и так показывает имя файла.
+        val t = title.trim().takeIf { it != e.fileName }.orEmpty()
+        val updated = e.copy(title = t, tail = tail.trim(), note = note.trim())
+        editing = null
+        if (flightEntry?.id == e.id) flightEntry = updated
+        compareA?.let { (ce, p) -> if (ce.id == e.id) compareA = updated to p }
+        compareB?.let { (ce, p) -> if (ce.id == e.id) compareB = updated to p }
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { repo.update(updated) }
+            reload()
+        }
+    }
+
     fun delete(e: LogEntry) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) { repo.delete(e) }
             picked.remove(e.id)
             reload()
-            showToast("Лог ${e.fileName} удалён")
+            showToast("Лог ${e.displayName} удалён")
         }
     }
 
@@ -654,7 +672,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleSection(s: PdfSection) { if (s in exSec) exSec.remove(s) else exSec.add(s) }
 
     fun exportFileName(): String {
-        val base = flight?.log?.fileName?.substringBeforeLast('.') ?: "flight"
+        // Файл называется по подписи полёта, если она есть.
+        val base = flightEntry?.title?.takeIf { it.isNotBlank() }?.replace(Regex("""[\\/:*?"<>|\n]+"""), "_")?.take(80)
+            ?: flight?.log?.fileName?.substringBeforeLast('.') ?: "flight"
         return "$base.${exFmt.ext}"
     }
 
@@ -673,7 +693,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         e != null && LogFields.supported(e.format)) {
                         LogFields.extract(repo.fileOf(e), e.format, fieldKeys, p.log.timeOriginUs)
                     } else emptyMap()
-                    val opts = ReportOptions(reportCharts.toList(), fields, reportParamMode, reportParamNames.toSet())
+                    val opts = ReportOptions(reportCharts.toList(), fields, reportParamMode, reportParamNames.toSet(),
+                        title = e?.title.orEmpty(), tail = e?.tail.orEmpty(), note = e?.note.orEmpty())
                     Exporter.write(ctx, p, exFmt, exSec.toSet(), exportFileName(), units, mapLayer, opts)
                 }
                 if (share) onShare(file, exFmt.mime)

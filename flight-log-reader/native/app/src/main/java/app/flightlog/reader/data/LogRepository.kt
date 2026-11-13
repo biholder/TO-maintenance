@@ -30,8 +30,14 @@ data class LogEntry(
     val status: Severity,
     val statusText: String,
     val issues: Int,
+    /** Подписи пользователя: название вместо имени файла, борт, комментарий. Сам файл не меняется. */
+    val title: String = "",
+    val tail: String = "",
+    val note: String = "",
 ) {
     val sortTime: Long get() = startUtc ?: importedAt
+    /** Название для показа: подпись пользователя или имя файла. */
+    val displayName: String get() = title.ifBlank { fileName }
 
     fun toJson() = JSONObject().apply {
         put("id", id); put("fileName", fileName); put("format", format.name); put("size", size)
@@ -39,6 +45,9 @@ data class LogEntry(
         put("autopilot", autopilot); put("vehicleType", vehicleType); put("board", board); put("firmware", firmware)
         put("flightTime", flightTime.toDouble()); put("distanceM", distanceM)
         put("status", status.name); put("statusText", statusText); put("issues", issues)
+        if (title.isNotBlank()) put("title", title)
+        if (tail.isNotBlank()) put("tail", tail)
+        if (note.isNotBlank()) put("note", note)
     }
 
     companion object {
@@ -51,6 +60,7 @@ data class LogEntry(
             flightTime = o.optDouble("flightTime", 0.0).toFloat(), distanceM = o.optDouble("distanceM", 0.0),
             status = Severity.valueOf(o.optString("status", "OK")), statusText = o.optString("statusText"),
             issues = o.optInt("issues"),
+            title = o.optString("title"), tail = o.optString("tail"), note = o.optString("note"),
         )
 
         fun of(id: String, size: Long, importedAt: Long, log: FlightLog, a: Analysis) = LogEntry(
@@ -148,6 +158,12 @@ class LogRepository(private val context: Context) {
     }
 
     fun cached(id: String): LogReader.Parsed? = synchronized(this) { cache[id] }
+
+    /** Сохраняет подписи записи (название, борт, комментарий). */
+    @Synchronized
+    fun update(e: LogEntry) {
+        save(list().map { if (it.id == e.id) e else it })
+    }
 
     @Synchronized
     fun delete(e: LogEntry) {
