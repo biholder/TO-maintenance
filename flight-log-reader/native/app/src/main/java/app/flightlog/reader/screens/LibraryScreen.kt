@@ -207,10 +207,10 @@ private fun LogRow(vm: AppViewModel, e: LogEntry) {
         }
         if (menu) {
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SecondaryButton("Изменить", { menu = false; vm.editing = e }, Modifier.weight(1f), height = 40.dp)
-                SecondaryButton("Открыть", { menu = false; vm.openFlight(e) }, Modifier.weight(1f), height = 40.dp)
-                SecondaryButton("Удалить", { menu = false; vm.delete(e) }, Modifier.weight(1f), height = 40.dp,
-                    leading = { Icon(Icons.Trash, tk.cr, size = 18.dp) })
+                SecondaryButton("Изменить", { menu = false; vm.editing = e }, Modifier.weight(1f), height = 38.dp, compact = true)
+                SecondaryButton("Открыть", { menu = false; vm.openFlight(e) }, Modifier.weight(1f), height = 38.dp, compact = true)
+                SecondaryButton("Удалить", { menu = false; vm.delete(e) }, Modifier.weight(1f), height = 38.dp, compact = true,
+                    leading = { Icon(Icons.Trash, tk.cr, size = 15.dp) })
             }
         }
     }

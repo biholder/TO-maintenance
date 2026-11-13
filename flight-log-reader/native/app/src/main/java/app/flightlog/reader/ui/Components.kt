@@ -142,18 +142,20 @@ fun SecondaryButton(
     modifier: Modifier = Modifier,
     height: Dp = 52.dp,
     leading: (@Composable () -> Unit)? = null,
+    /** Мелкий вариант для узких кнопок в ряд (меню записи в списке). */
+    compact: Boolean = false,
 ) {
     val src = remember { MutableInteractionSource() }
     val pressed by src.collectIsPressedAsState()
     Row(
         modifier.height(height).hairline(tk.dv).background(if (pressed) tk.sf else Color.Transparent, RoundedCornerShape(Radius.M))
-            .clickable(src, null, role = Role.Button, onClick = onClick).padding(horizontal = 16.dp),
+            .clickable(src, null, role = Role.Button, onClick = onClick).padding(horizontal = if (compact) 8.dp else 16.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         leading?.invoke()
-        if (leading != null) Box(Modifier.width(8.dp))
-        T(text.uppercase(), Type.cond(15.sp, 0.8.sp), tk.tx)
+        if (leading != null) Box(Modifier.width(if (compact) 6.dp else 8.dp))
+        T(text.uppercase(), if (compact) Type.cond(13.sp, 0.5.sp) else Type.cond(15.sp, 0.8.sp), tk.tx, maxLines = 1)
     }
 }
 
