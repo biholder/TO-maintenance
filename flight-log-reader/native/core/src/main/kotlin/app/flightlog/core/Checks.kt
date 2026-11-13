@@ -44,7 +44,8 @@ internal class Checks(private val log: FlightLog, private val issues: MutableLis
         // Модуль поля вне допустимого диапазона ArduPilot (COMPASS_… arming check: 185…875 мГс).
         val values = idx.map { mag.values[it] }
         val median = values.sorted()[values.size / 2]
-        if (median < FIELD_MIN || median > FIELD_MAX) {
+        // Геоскан на части бортов пишет поле нормированным (модуль около 1) — абсолютный диапазон не проверяем.
+        if (log.format != LogFormat.GEOSCAN && (median < FIELD_MIN || median > FIELD_MAX)) {
             ok = false
             issues += Issue(Severity.WARN, "Поле компаса вне нормы", armed, disarmed,
                 "Модуль магнитного поля около ${median.toInt()} мГс при норме $FIELD_MIN…$FIELD_MAX. Компас не откалиброван, " +

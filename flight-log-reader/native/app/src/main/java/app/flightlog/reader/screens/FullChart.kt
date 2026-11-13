@@ -70,7 +70,8 @@ private class FullSpec(val title: String, val lines: List<Line>, val shared: Boo
 
 @Composable
 private fun spec(vm: AppViewModel, log: FlightLog, chart: FullChart): FullSpec? {
-    val colors = listOf(tk.ac, tk.wr, tk.ok, tk.cr, Color(0xFF8E6CD9), Color(0xFF2BB3C9))
+    val colors = listOf(tk.ac, tk.wr, tk.ok, tk.cr, Color(0xFF8E6CD9), Color(0xFF2BB3C9),
+        Color(0xFFD45FA6), Color(0xFF8C9A3A), Color(0xFF4C8DF6), Color(0xFFE0A21B))
     val lowV = log.params.firstOrNull { it.name == "BATT_LOW_VOLT" }?.value?.takeIf { it > 0 }
     return when (chart) {
         is FullChart.Channel -> {

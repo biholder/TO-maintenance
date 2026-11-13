@@ -37,6 +37,13 @@ object LogReader {
             "Журнал событий: режимы, подсказки и предупреждения DJI",
             "Диагностика полёта",
         )
+        LogFormat.GEOSCAN -> listOf(
+            "Чтение файла",
+            "Разбор журнала Геоскан: описания сообщений и записи",
+            "Сборка каналов: ориентация, навигация, питание, моторы",
+            "Журнал событий: режимы, события, парашют",
+            "Диагностика полёта",
+        )
         LogFormat.TLOG -> listOf(
             "Чтение файла",
             "Разбор пакетов MAVLink v1/v2, проверка CRC",
@@ -49,6 +56,7 @@ object LogReader {
     fun detect(name: String, head: ByteArray): LogFormat? {
         val ext = name.substringAfterLast('.', "").lowercase()
         if (head.isDataFlash()) return LogFormat.DATAFLASH
+        if (GeoscanLog.looksLike(head)) return LogFormat.GEOSCAN
         if (TextLogParser.looksLikeText(head)) return LogFormat.DATAFLASH_TEXT
         if (ext == "txt" && DjiLog.looksLikeDji(head)) return LogFormat.DJI
         if (ext == "tlog") return LogFormat.TLOG
@@ -57,6 +65,9 @@ object LogReader {
         if (head.size > 9 && ((head[8].toInt() and 0xFF) == 0xFE || (head[8].toInt() and 0xFF) == 0xFD)) return LogFormat.TLOG
         return null
     }
+
+    /** Сколько байт начала файла смотреть при определении формата: у 401 журнал начинается не с нулевого байта. */
+    const val HEAD_BYTES = 1 shl 16
 
     private fun ByteArray.isDataFlash() = size >= 3 && this[0] == 0xA3.toByte() && this[1] == 0x95.toByte() && (this[2].toInt() and 0xFF) == 0x80
 
@@ -77,7 +88,7 @@ object LogReader {
      */
     fun read(file: File, displayName: String = file.name, listener: Listener? = null, djiKeychains: String? = null): Parsed {
         listener?.onStage(0, null)
-        val format = detect(displayName, head(file)) ?: throw unknown()
+        val format = detect(displayName, head(file, HEAD_BYTES)) ?: throw unknown()
         return when (format) {
             LogFormat.DATAFLASH_TEXT -> file.inputStream().buffered(1 shl 16).use { input ->
                 parse(format, displayName, file.length(), listener, text = { p -> TextLogParser().parse(input, file.length(), p) })
@@ -94,7 +105,7 @@ object LogReader {
 
     /** Разбор из памяти — для тестов и небольших файлов. */
     fun read(bytes: ByteArray, name: String, listener: Listener? = null, djiKeychains: String? = null): Parsed {
-        val format = detect(name, bytes.copyOf(minOf(64, bytes.size))) ?: throw unknown()
+        val format = detect(name, bytes.copyOf(minOf(HEAD_BYTES, bytes.size))) ?: throw unknown()
         val size = bytes.size.toLong()
         return when (format) {
             LogFormat.DATAFLASH_TEXT -> parse(format, name, size, listener, text = { p -> TextLogParser().parse(bytes.inputStream(), size, p) })
@@ -104,7 +115,7 @@ object LogReader {
     }
 
     private fun unknown() = LogParseException(
-        "Неизвестный формат файла. Поддерживаются ArduPilot .bin, текстовый .log (Mission Planner), MAVLink .tlog, DJI FlightRecord .txt и CSV",
+        "Неизвестный формат файла. Поддерживаются ArduPilot .bin, текстовый .log (Mission Planner), MAVLink .tlog, журналы Геоскан .bin, DJI FlightRecord .txt и CSV",
     )
 
     private fun parse(
@@ -138,6 +149,12 @@ object LogReader {
                 val dji = DjiLog(buffer!!)
                 val l = DjiMapper.map(name, size, dji, djiKeychains, progress)
                 listener?.onStage(1, "v${dji.version} · ${l.messageCount} записей")
+                listener?.onStage(2, null)
+                l
+            }
+            LogFormat.GEOSCAN -> {
+                val l = GeoscanMapper.map(name, size, buffer!!, progress)
+                listener?.onStage(1, "${l.messageCount} записей")
                 listener?.onStage(2, null)
                 l
             }

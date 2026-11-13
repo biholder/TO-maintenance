@@ -56,7 +56,7 @@ import app.flightlog.reader.ui.landscape
 import app.flightlog.reader.ui.tk
 import app.flightlog.reader.ui.topRule
 
-val SOURCES = listOf("ArduPilot", "PX4", "DJI", "Betaflight", "INAV")
+val SOURCES = listOf("ArduPilot", "Геоскан", "PX4", "DJI", "Betaflight", "INAV")
 
 @Composable
 fun statusColor(s: Severity): Color = when (s) {
@@ -139,7 +139,7 @@ private fun EmptyLibrary(vm: AppViewModel, nothing: Boolean) {
         Icon(Icons.Drone, tk.mu, size = 40.dp)
         T(if (nothing) "Библиотека пуста" else "Нет логов этого источника", Type.h2, modifier = Modifier.padding(top = 14.dp))
         T(
-            if (nothing) "Импортируйте .bin или .log (ArduPilot), .tlog (MAVLink), DJI FlightRecord .txt или таблицу .csv с телефона — или откройте демо-полёты, чтобы посмотреть возможности."
+            if (nothing) "Импортируйте .bin или .log (ArduPilot), журнал Геоскан .bin, .tlog (MAVLink), DJI FlightRecord .txt или таблицу .csv с телефона — или откройте демо-полёты, чтобы посмотреть возможности."
             else "Поддерживаются ArduPilot DataFlash и телеметрия MAVLink. PX4 ULog, DJI и Blackbox — в работе.",
             Type.body(14.sp), tk.mu, Modifier.padding(top = 6.dp),
         )

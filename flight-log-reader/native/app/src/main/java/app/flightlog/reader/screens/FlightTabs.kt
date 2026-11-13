@@ -475,7 +475,11 @@ fun ChartsTab(vm: AppViewModel, p: LogReader.Parsed) {
     val log = p.log
     val u = UnitFmt(vm.units)
     // Стандартные каналы, затем дополнительные столбцы CSV.
-    val available = CHANNELS.filter { it in log.series } + log.series.keys.filter { it.startsWith("csv:") }
+    // Стандартные каналы, затем остальные каналы формата (CSV, Геоскан: воздушная скорость, моторы, элементы АКБ…).
+    // Каналы отдельных АКБ, моторов ArduPilot и составляющие EKF — в «Наложении» и сравнении АКБ.
+    val available = CHANNELS.filter { it in log.series } + log.series.keys.filter { k ->
+        k !in CHANNELS && !k.startsWith("bat") && !k.startsWith("mot") && !k.startsWith("ekf") && !k.startsWith("magdiff")
+    }
     LaunchedEffect(p) {
         // Если стандартных каналов нет (например, в CSV), показать первые доступные.
         if (vm.channels.none { it in log.series }) vm.channels.addAll(available.take(4))

@@ -44,6 +44,7 @@ import app.flightlog.reader.ui.tk
 /** Поддерживаемые форматы: сначала работающие, в конце — «скоро». */
 private val FORMATS = listOf(
     Triple(".bin", "DataFlash", "ArduPilot"),
+    Triple(".bin", "Журнал", "Геоскан 101 / 201 / 401"),
     Triple(".log", "Текстовый", "ArduPilot / Mission Planner"),
     Triple(".tlog", "MAVLink", "ArduPilot / PX4"),
     Triple(".csv", "Таблица", "DJI (AirData), PLOV и др."),

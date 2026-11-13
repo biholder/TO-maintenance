@@ -7,6 +7,7 @@ enum class LogFormat(val ext: String, val source: String) {
     TLOG("tlog", "MAVLink"),
     CSV("csv", "CSV"),
     DJI("txt", "DJI"),
+    GEOSCAN("bin", "Геоскан"),
 }
 
 /** Временной ряд одного канала: время в секундах от начала лога. */

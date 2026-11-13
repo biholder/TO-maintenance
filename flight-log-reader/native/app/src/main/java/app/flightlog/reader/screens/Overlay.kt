@@ -45,7 +45,8 @@ import app.flightlog.reader.ui.hairline
 import app.flightlog.reader.ui.tk
 
 @Composable
-private fun overlayColors(): List<Color> = listOf(tk.ac, tk.wr, tk.ok, tk.cr, Color(0xFF8E6CD9), Color(0xFF2BB3C9))
+private fun overlayColors(): List<Color> = listOf(tk.ac, tk.wr, tk.ok, tk.cr, Color(0xFF8E6CD9), Color(0xFF2BB3C9),
+    Color(0xFFD45FA6), Color(0xFF8C9A3A), Color(0xFF4C8DF6), Color(0xFFE0A21B))
 
 /** Знаков после запятой для единицы измерения. */
 private fun digitsFor(unit: String) = when (unit) {
@@ -60,6 +61,10 @@ private fun presets(log: FlightLog): List<Pair<String, List<String>>> {
     fun has(vararg k: String) = k.filter { it in s }
     return listOfNotNull(
         Motors.motors(log).map { Motors.key(it) }.takeIf { it.size > 1 }?.let { "Моторы" to it },
+        s.keys.filter { it.startsWith("rpm") }.sorted().takeIf { it.size > 1 }?.let { "Обороты моторов" to it },
+        s.keys.filter { it.startsWith("mcur") }.sorted().takeIf { it.size > 1 }?.let { "Токи моторов" to it },
+        s.keys.filter { it.startsWith("cell") }.sortedBy { it.removePrefix("cell").toIntOrNull() }.takeIf { it.size > 1 }
+            ?.let { "Элементы АКБ" to it },
         has(Ch.MAG, Ch.CURR).takeIf { it.size == 2 }?.let { "Компас и ток" to it },
         has(Ch.EKF_VEL, Ch.EKF_POS, Ch.EKF_HGT, Ch.EKF_MAG).takeIf { it.size > 1 }?.let { "EKF" to it },
         has(Ch.THR, Ch.VOLT, Ch.CURR).takeIf { it.size > 1 }?.let { "Газ и питание" to it },

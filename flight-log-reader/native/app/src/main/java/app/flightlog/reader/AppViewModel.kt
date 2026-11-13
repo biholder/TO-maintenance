@@ -46,7 +46,7 @@ val DEFAULT_REPORT_CHARTS = listOf(Ch.ALT, Ch.SPD, Ch.VOLT, Ch.CURR, Ch.VIBE_Z, 
 
 /** Скорости воспроизведения полёта. */
 val SPEEDS = listOf(1, 2, 5, 10, 30, 60)
-const val MAX_OVERLAY = 6
+const val MAX_OVERLAY = 10
 
 class DecodeState(
     val fileName: String,
@@ -326,6 +326,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         LogFormat.TLOG -> "MAVLink telemetry · ${parsed.log.vehicle.autopilot}"
                         LogFormat.CSV -> "Таблица CSV · ${parsed.log.vehicle.autopilot} · ${parsed.log.series.size} каналов"
                         LogFormat.DJI -> "DJI FlightRecord · ${parsed.log.vehicle.frame.ifEmpty { parsed.log.vehicle.board }}"
+                        LogFormat.GEOSCAN -> "Журнал Геоскан · ${parsed.log.vehicle.vehicleType.lowercase()}" +
+                            parsed.log.vehicle.firmware.takeIf { it.isNotEmpty() }?.let { " · $it" }.orEmpty()
                     },
                 )
                 reload()

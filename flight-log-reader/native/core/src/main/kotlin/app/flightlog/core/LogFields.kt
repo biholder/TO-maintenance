@@ -23,7 +23,8 @@ object LogFields {
         val key: String = PREFIX + label
     }
 
-    fun supported(format: LogFormat) = format == LogFormat.DATAFLASH || format == LogFormat.DATAFLASH_TEXT
+    fun supported(format: LogFormat) =
+        format == LogFormat.DATAFLASH || format == LogFormat.DATAFLASH_TEXT || format == LogFormat.GEOSCAN
 
     fun isField(key: String) = key.startsWith(PREFIX)
 
@@ -50,6 +51,7 @@ object LogFields {
      * по одной записи раз в несколько секунд — памяти почти не нужно.
      */
     fun catalog(file: File, format: LogFormat): List<Message> {
+        if (format == LogFormat.GEOSCAN) return geoscanCatalog(file)
         val r = read(file, format, null, CATALOG_RATE_HZ)
         return r.tables.values.filter { it.name !in SKIP && it.has("TimeUS") && it.rows > 0 }.map { tab ->
             val ic = instanceColumn(tab)
@@ -69,6 +71,7 @@ object LogFields {
     fun extract(file: File, format: LogFormat, keys: Collection<String>, timeOriginUs: Double?): Map<String, Series> {
         val refs = keys.mapNotNull { parse(it) }
         if (refs.isEmpty()) return emptyMap()
+        if (format == LogFormat.GEOSCAN) return geoscanExtract(file, refs, timeOriginUs)
         val r = read(file, format, refs.map { it.message }.toSet(), DataFlashParser.DEFAULT_RATE_HZ)
         val t0 = timeOriginUs ?: r.tables.values.mapNotNull { it.numeric["TimeUS"]?.takeIf { l -> l.size > 0 }?.get(0) }.minOrNull() ?: 0.0
         val out = LinkedHashMap<String, Series>()
@@ -91,6 +94,52 @@ object LogFields {
     }
 
     private const val CATALOG_RATE_HZ = 0.2
+
+    private fun <T> mapped(file: File, block: (java.nio.ByteBuffer) -> T): T = RandomAccessFile(file, "r").use { raf ->
+        block(raf.channel.map(FileChannel.MapMode.READ_ONLY, 0, raf.length()))
+    }
+
+    /** Геоскан: поле «n» — номер устройства (мотора), по нему экземпляры. */
+    private fun geoscanInstance(msg: GeoscanLog.Message, d: java.nio.ByteBuffer): Int? =
+        msg.field("n")?.let { GeoscanLog.value(d, it).toInt() }
+
+    private fun geoscanCatalog(file: File): List<Message> = mapped(file) { buf ->
+        val log = GeoscanLog(buf)
+        val seen = HashMap<String, MutableSet<Int>>()
+        log.scan { msg, _, d ->
+            val set = seen.getOrPut(msg.name) { HashSet() }
+            geoscanInstance(msg, d)?.let { if (set.size < 32) set += it }
+            true
+        }
+        log.messages.values.filter { it.name in seen && !it.name.startsWith("Parameter") && it.name != "Version" }.map { m ->
+            Message(m.name, seen.getValue(m.name).sorted(), m.fields.filter { it.type != 1 && it.name != "n" }.map { it.name })
+        }.filter { it.fields.isNotEmpty() }.sortedBy { it.name }
+    }
+
+    private fun geoscanExtract(file: File, refs: List<Ref>, timeOriginUs: Double?): Map<String, Series> = mapped(file) { buf ->
+        val byMsg = refs.groupBy { it.message }
+        val cols = HashMap<String, Pair<DoubleList, DoubleList>>()
+        val lastKept = HashMap<String, Long>()
+        var t0 = timeOriginUs
+        GeoscanLog(buf).scan { msg, us, d ->
+            if (t0 == null && us > 0) t0 = us.toDouble()
+            val want = byMsg[msg.name] ?: return@scan true
+            val inst = geoscanInstance(msg, d)
+            val gate = "${msg.name}[$inst]"
+            val last = lastKept[gate]
+            if (last != null && us >= last && us - last < 80_000) return@scan true
+            lastKept[gate] = us
+            for (ref in want) {
+                if (ref.instance != null && ref.instance != inst) continue
+                val f = msg.field(ref.field) ?: continue
+                val c = cols.getOrPut(ref.key) { DoubleList() to DoubleList() }
+                c.first.add((us - (t0 ?: 0.0)) / 1e6); c.second.add(GeoscanLog.value(d, f))
+            }
+            true
+        }
+        refs.mapNotNull { ref -> cols[ref.key]?.let { (t, v) -> ref.key to Series(ref.key, ref.label, ref.label, "", t.toFloatArray(), v.toFloatArray()) } }
+            .toMap(LinkedHashMap())
+    }
 
     private fun read(file: File, format: LogFormat, wanted: Set<String>?, rateHz: Double): DataFlashParser.Result = when (format) {
         LogFormat.DATAFLASH -> RandomAccessFile(file, "r").use { raf ->

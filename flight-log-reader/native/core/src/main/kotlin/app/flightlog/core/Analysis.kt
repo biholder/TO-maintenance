@@ -51,6 +51,8 @@ object Analyzer {
     const val VIBE_CRIT = 60f
     const val SATS_MIN = 10f
     const val HDOP_MAX = 1.5f
+    const val SATS_MIN_GEOSCAN = 6f
+    const val HDOP_MAX_GEOSCAN = 2.5f
     /** Порог отношения тестов инноваций EKF (как FS_EKF_THRESH по умолчанию). */
     const val EKF_WARN = 0.8f
     /** Слабый сигнал приёмника, %. */
@@ -112,16 +114,30 @@ object Analyzer {
         }
         val sats = s[Ch.SATS]
         val hdop = s[Ch.HDOP]
+        // Геоскан считает спутники одной системы: 9–12 — обычный приём.
+        val satsMin = if (log.format == LogFormat.GEOSCAN) SATS_MIN_GEOSCAN else SATS_MIN
+        val hdopMax = if (log.format == LogFormat.GEOSCAN) HDOP_MAX_GEOSCAN else HDOP_MAX
         if (sats != null) {
             val bad = BooleanArray(sats.size) { i ->
-                inFlight(sats.time[i]) && (sats.values[i] < SATS_MIN || (hdop?.valueAt(sats.time[i]) ?: 0f) > HDOP_MAX)
+                inFlight(sats.time[i]) && (sats.values[i] < satsMin || (hdop?.valueAt(sats.time[i]) ?: 0f) > hdopMax)
             }
             val iv = intervals(sats.time, bad, gap = 3f, minLen = 2f)
-            for ((a, b) in iv) {
-                var minS = Float.MAX_VALUE
-                for (i in sats.indexAt(a)..sats.indexAt(b)) minS = minOf(minS, sats.values[i])
+            fun minSats(a: Float, b: Float): Int {
+                var m = Float.MAX_VALUE
+                for (i in sats.indexAt(a)..sats.indexAt(b)) m = minOf(m, sats.values[i])
+                return m.toInt()
+            }
+            if (iv.size > 3) {
+                // Много эпизодов подряд — одна сводная проблема, а не десятки карточек.
+                val total = iv.sumOf { (a, b) -> (b - a).toDouble() }.toInt()
+                val minS = iv.minOf { (a, b) -> minSats(a, b) }
+                issues += Issue(Severity.WARN, "Деградация GPS", iv.first().first, iv.last().second,
+                    "${iv.size} ${plural(iv.size, "эпизод", "эпизода", "эпизодов")} общей длительностью ${total} с, " +
+                        "число спутников падало до $minS. Возможны помехи (подавление GNSS), экранирование антенны " +
+                        "или помехи от бортовой электроники.", Ch.SATS)
+            } else for ((a, b) in iv) {
                 issues += Issue(Severity.WARN, "Деградация GPS", a, b,
-                    "Число спутников падало до ${minS.toInt()}" +
+                    "Число спутников падало до ${minSats(a, b)}" +
                         (if (gpsErr.any { it.time in a - 2..b + 2 }) ", зафиксирован GPS glitch" else "") +
                         ". Проверьте помехи от бортовой электроники и экранирование приёмника.", Ch.SATS)
             }
