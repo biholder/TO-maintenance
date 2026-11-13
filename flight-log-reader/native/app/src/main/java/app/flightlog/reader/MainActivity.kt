@@ -1,6 +1,13 @@
 package app.flightlog.reader
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import app.flightlog.reader.screens.SettingsScreen
+import app.flightlog.reader.update.Updater
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -59,7 +66,13 @@ class MainActivity : ComponentActivity() {
                     isAppearanceLightNavigationBars = !dark
                 }
             }
-            AppTheme(dark) { Root(vm, ::share) }
+            AppTheme(dark) { Root(vm, ::share, ::requestNotifications) }
+        }
+        // Один раз спросить разрешение на уведомления, если включена автопроверка обновлений.
+        val prefs = getSharedPreferences("settings", MODE_PRIVATE)
+        if (vm.updateAuto && !prefs.getBoolean("notifications_asked", false)) {
+            prefs.edit().putBoolean("notifications_asked", true).apply()
+            requestNotifications()
         }
         // Файл, переданный через «Поделиться» / «Открыть с помощью» (не повторяем при повороте экрана).
         if (savedInstanceState == null) handleIncoming(intent)
@@ -70,7 +83,24 @@ class MainActivity : ComponentActivity() {
         handleIncoming(intent)
     }
 
+    /** Разрешение на уведомления (Android 13+) — для сообщений о новых версиях. */
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
+    private fun requestNotifications() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     private fun handleIncoming(intent: Intent?) {
+        // Нажатие на уведомление о новой версии.
+        if (intent?.getBooleanExtra(Updater.EXTRA_OPEN_UPDATE, false) == true) {
+            intent.removeExtra(Updater.EXTRA_OPEN_UPDATE)
+            vm.splashShown = true
+            vm.openUpdates()
+            return
+        }
         val uris: List<Uri> = when (intent?.action) {
             Intent.ACTION_VIEW -> listOfNotNull(intent.data)
             Intent.ACTION_SEND -> listOfNotNull(
@@ -97,7 +127,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun Root(vm: AppViewModel, share: (File, String) -> Unit) {
+private fun Root(vm: AppViewModel, share: (File, String) -> Unit, requestNotifications: () -> Unit) {
     BackHandler(enabled = vm.stack.size > 1 || vm.sheet || vm.compareMode || vm.fullChart != null) { vm.back() }
     Box(Modifier.fillMaxSize().background(tk.bg)) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -110,6 +140,7 @@ private fun Root(vm: AppViewModel, share: (File, String) -> Unit) {
                     Screen.EXPORT -> ExportScreen(vm, share)
                     Screen.REPORT_CHARTS -> ReportChartsScreen(vm)
                     Screen.REPORT_PARAMS -> ReportParamsScreen(vm)
+                    Screen.SETTINGS -> SettingsScreen(vm, requestNotifications)
                 }
             }
         }

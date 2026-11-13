@@ -84,6 +84,13 @@ jobs:
           v=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
           echo "tag=v$v" >> "$GITHUB_OUTPUT"
           cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/PLOV-$v.apk"
+          # Описание релиза — раздел этой версии из CHANGELOG.md (его показывает экран обновления в приложении).
+          awk -v v="## $v" '$0==v{f=1;next} /^## /{if(f)exit} f' CHANGELOG.md > release-notes.md
+          {
+            echo
+            echo "---"
+            echo "Скачайте PLOV-$v.apk ниже и установите на Android 8+, или обновитесь из приложения: ⋮ → Настройки и обновления."
+          } >> release-notes.md
 
       - name: Publish release (on release commit)
         if: steps.ver.outputs.tag != ''
@@ -93,9 +100,7 @@ jobs:
           name: PLOV ${{ steps.ver.outputs.tag }}
           target_commitish: ${{ github.sha }}
           files: flight-log-reader/native/app/build/outputs/apk/debug/PLOV-*.apk
-          body: |
-            PLOV — анализ полётных логов БВС (ArduPilot .bin/.log/.tlog, DJI FlightRecord .txt, CSV).
-            Скачайте PLOV-*.apk ниже и установите на Android 8+ (разрешите установку из этого источника).
+          body_path: flight-log-reader/native/release-notes.md
 
   webview-demo:
     name: WebView prototype (demo)

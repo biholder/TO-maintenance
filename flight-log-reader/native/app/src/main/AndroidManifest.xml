@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Только для запроса ключей расшифровки логов DJI v13+ у DJI Open API. -->
+    <!-- Ключи расшифровки логов DJI v13+, тайлы подложки карты, проверка обновлений на GitHub. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Установка новой версии PLOV, скачанной из релизов GitHub (пользователь подтверждает в системном окне). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Уведомление о новой версии (Android 13+ спрашивает разрешение). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"

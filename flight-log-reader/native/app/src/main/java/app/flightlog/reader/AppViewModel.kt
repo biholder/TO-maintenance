@@ -5,6 +5,8 @@ import app.flightlog.core.LogFields
 import app.flightlog.reader.export.ParamMode
 import app.flightlog.reader.export.ReportOptions
 import app.flightlog.reader.map.MapTiles
+import app.flightlog.reader.update.Release
+import app.flightlog.reader.update.Updater
 import android.app.Application
 import android.net.Uri
 import androidx.compose.runtime.getValue
@@ -29,7 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-enum class Screen { LIBRARY, DECODE, FLIGHT, COMPARE, EXPORT, REPORT_CHARTS, REPORT_PARAMS }
+enum class Screen { LIBRARY, DECODE, FLIGHT, COMPARE, EXPORT, REPORT_CHARTS, REPORT_PARAMS, SETTINGS }
 enum class FlightTab(val title: String) { SUMMARY("Сводка"), TRACK("Трек"), CHARTS("Графики"), EVENTS("События"), PARAMS("PARM") }
 enum class TrackBy(val title: String) { SPEED("Скорость"), ALT("Высота"), BATTERY("Батарея"), CURRENT("Ток"), MODE("Режим") }
 enum class EvFilter(val title: String) { ALL("Все"), WARN("Предупреждения"), MODES("Режимы") }
@@ -233,6 +235,91 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putBoolean("player_collapsed", playerCollapsed).apply()
     }
 
+    // Обновления приложения из релизов GitHub.
+    val appVersion: String = Updater.currentVersion(app)
+    /** Проверять обновления автоматически (при запуске и раз в сутки в фоне) и уведомлять. */
+    var updateAuto by mutableStateOf(prefs.getBoolean("update_auto", true))
+        private set
+    /** Последний релиз на GitHub, если он новее установленной версии. */
+    var updateAvailable by mutableStateOf<Release?>(null)
+        private set
+    var updateChecking by mutableStateOf(false)
+        private set
+    /** Результат последней проверки или ошибка для экрана настроек. */
+    var updateMessage by mutableStateOf<String?>(null)
+        private set
+    /** Доля скачивания 0..1; null — не скачивается. */
+    var updateProgress by mutableStateOf<Float?>(null)
+        private set
+    private var updateFile: File? = null
+    private var downloadJob: Job? = null
+
+    fun setUpdateAutoCheck(on: Boolean) {
+        updateAuto = on
+        prefs.edit().putBoolean("update_auto", on).apply()
+        Updater.schedule(getApplication(), on)
+    }
+
+    fun checkUpdates(manual: Boolean = true) {
+        if (updateChecking) return
+        updateChecking = true
+        if (manual) updateMessage = null
+        viewModelScope.launch {
+            try {
+                val r = Updater.latest()
+                prefs.edit().putLong("update_checked_at", System.currentTimeMillis()).apply()
+                if (Updater.compare(r.version, appVersion) > 0) {
+                    updateAvailable = r
+                    updateMessage = null
+                    if (!manual) Updater.notifyOnce(getApplication(), r)
+                } else {
+                    updateAvailable = null
+                    updateMessage = "Установлена последняя версия"
+                }
+            } catch (ex: kotlinx.coroutines.CancellationException) {
+                throw ex
+            } catch (ex: Throwable) {
+                if (manual) updateMessage = "Не удалось проверить: ${errorText(ex)}"
+            } finally {
+                updateChecking = false
+            }
+        }
+    }
+
+    /** Скачивает новую версию и запускает установку. */
+    fun downloadAndInstall() {
+        val r = updateAvailable ?: return
+        val ctx = getApplication<Application>()
+        if (!Updater.canInstall(ctx)) {
+            updateMessage = "Разрешите PLOV устанавливать приложения и нажмите «Установить» ещё раз"
+            Updater.openInstallPermission(ctx)
+            return
+        }
+        updateFile?.takeIf { it.exists() && it.name.contains(r.version) }?.let { Updater.install(ctx, it); return }
+        if (downloadJob?.isActive == true) return
+        updateMessage = null
+        updateProgress = 0f
+        downloadJob = viewModelScope.launch {
+            try {
+                val f = Updater.download(ctx, r) { p -> updateProgress = p }
+                updateFile = f
+                updateProgress = null
+                Updater.install(ctx, f)
+            } catch (ex: kotlinx.coroutines.CancellationException) {
+                throw ex
+            } catch (ex: Throwable) {
+                updateProgress = null
+                updateMessage = "Ошибка обновления: ${errorText(ex)}"
+            }
+        }
+    }
+
+    /** Переход к настройкам из уведомления или плашки «Доступна версия». */
+    fun openUpdates() {
+        if (screen != Screen.SETTINGS) push(Screen.SETTINGS)
+        if (updateAvailable == null) checkUpdates()
+    }
+
     var mapLayer by mutableStateOf(
         prefs.getString("map_layer", null)?.let { n -> MapLayer.entries.firstOrNull { it.name == n } } ?: MapLayer.SCHEME)
         private set
@@ -242,7 +329,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString("map_layer", layer.name).apply()
     }
 
-    init { MapTiles.init(app) }
+    init {
+        MapTiles.init(app)
+        Updater.schedule(app, updateAuto)
+        // При запуске — не чаще раза в 6 часов, молча: о новой версии скажет плашка и уведомление.
+        if (updateAuto && System.currentTimeMillis() - prefs.getLong("update_checked_at", 0) > 6 * 3600_000L) checkUpdates(manual = false)
+    }
 
     /** Подготовленный файл, ожидающий ключей DJI. */
     private var pending: Pair<File, String>? = null

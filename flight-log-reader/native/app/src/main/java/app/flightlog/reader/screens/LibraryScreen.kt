@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import app.flightlog.core.Severity
 import app.flightlog.core.plural
 import app.flightlog.reader.AppViewModel
+import app.flightlog.reader.Screen
 import app.flightlog.reader.UnitFmt
 import app.flightlog.reader.Units
 import app.flightlog.reader.data.LogEntry
@@ -89,6 +90,17 @@ fun LibraryScreen(vm: AppViewModel) {
                 }
             }
             OverflowMenu(vm)
+        }
+
+        // Новая версия приложения.
+        vm.updateAvailable?.let { r ->
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth().background(tk.ac1, RoundedCornerShape(10.dp))
+                .clickable { vm.openUpdates() }.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Download, tk.act, size = 18.dp)
+                T("Доступна версия ${r.version}", Type.body(14.sp, FontWeight.SemiBold), tk.act, Modifier.padding(start = 10.dp).weight(1f))
+                T("Обновить", Type.body(14.sp, FontWeight.Medium), tk.act)
+                Icon(Icons.ChevronRight, tk.act, size = 18.dp)
+            }
         }
 
         // Чипы источника.
@@ -226,6 +238,12 @@ private fun OverflowMenu(vm: AppViewModel) {
                     MenuItem("Сравнить полёты", "Выбрать два полёта из списка", icon = Icons.Columns) {
                         vm.compareMode = true
                         open = false
+                    }
+                    MenuItem("Настройки и обновления",
+                        if (vm.updateAvailable != null) "Доступна версия ${vm.updateAvailable?.version}" else "Версия ${vm.appVersion}",
+                        icon = Icons.Download) {
+                        open = false
+                        vm.push(Screen.SETTINGS)
                     }
                 }
             }
