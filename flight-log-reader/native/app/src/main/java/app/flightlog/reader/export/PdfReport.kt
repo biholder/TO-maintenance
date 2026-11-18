@@ -227,6 +227,35 @@ object PdfReport {
             }
         }
 
+        if (PdfSection.NAV in sections) app.flightlog.core.NavAccuracy.analyze(log)?.let { r ->
+            heading(x, "ТОЧНОСТЬ НАВИГАЦИИ · ${r.rating.title.uppercase()}")
+            wrap(x, r.ratingText, TX, 10f, M)
+            x.y += 6
+            val colW = (W - 2 * M)
+            x.ensure(16f)
+            x.c!!.drawText("Показатель", M, x.y, paint(MU, 8.5f, true))
+            x.c!!.drawText("На земле", M + colW * 0.55f, x.y, paint(MU, 8.5f, true))
+            x.c!!.drawText("В полёте", M + colW * 0.77f, x.y, paint(MU, 8.5f, true))
+            x.y += 13
+            for ((name, g, f) in app.flightlog.reader.screens.navRows(r)) {
+                x.ensure(14f)
+                x.c!!.drawText(name, M, x.y, paint(TX, 9f))
+                x.c!!.drawText(g, M + colW * 0.55f, x.y, paint(MU, 9f))
+                x.c!!.drawText(f, M + colW * 0.77f, x.y, paint(TX, 9f, true))
+                x.y += 13
+            }
+            x.y += 6
+            if (r.observations.isNotEmpty()) {
+                x.ensure(16f); x.c!!.drawText("Наблюдения", M, x.y, paint(MU, 9f, true)); x.y += 13
+                r.observations.forEach { wrap(x, "• $it", TX, 9.5f, M); x.y += 2 }
+            }
+            if (r.paramNotes.isNotEmpty()) {
+                x.ensure(16f); x.c!!.drawText("Настройки EKF и ГНСС", M, x.y, paint(MU, 9f, true)); x.y += 13
+                r.paramNotes.forEach { wrap(x, "• $it", TX, 9.5f, M); x.y += 2 }
+            }
+            x.y += 8
+        }
+
         if (PdfSection.EVENTS in sections) {
             heading(x, "ЖУРНАЛ СОБЫТИЙ")
             log.events.filter { it.kind != EventKind.INFO || it.source != "MSG" || it.time > (log.armTime ?: 0f) - 5 }

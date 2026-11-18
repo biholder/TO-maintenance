@@ -103,6 +103,7 @@ fun FlightScreen(vm: AppViewModel) {
                 FlightTab.SUMMARY -> SummaryTab(vm, p)
                 FlightTab.TRACK -> TrackTab(vm, p)
                 FlightTab.CHARTS -> ChartsTab(vm, p)
+                FlightTab.NAV -> NavTab(vm, p)
                 FlightTab.EVENTS -> EventsTab(vm, p)
                 FlightTab.PARAMS -> ParamsTab(vm, p)
             }

@@ -150,6 +150,30 @@ object Ch {
     const val EKF_HGT = "ekfH"
     const val EKF_MAG = "ekfM"
 
+    // Точность навигации.
+    /** Оценка горизонтальной / вертикальной погрешности от приёмника (eph/epv, HAcc/VAcc), м. */
+    const val EPH = "eph"
+    const val EPV = "epv"
+    const val VDOP = "vdop"
+    /** Тип решения: 3 — 3D, 4 — с поправками (SBAS/DGPS), 5 — RTK float, 6 — RTK fixed. */
+    const val FIX = "fix"
+    const val GPS_ALT = "gps_alt"
+    const val BARO_ALT = "baro_alt"
+    /** Признаки помех от приёмника. */
+    const val GPS_JAM = "gps_jam"
+    const val GPS_NOISE = "gps_noise"
+    const val GPS_AGC = "gps_agc"
+    const val GPS_JAM_STATE = "gps_jamst"
+    const val GPS_SPOOF = "gps_spoof"
+    /** Невязка EKF по позиции ГНСС (горизонт), м; по скорости N/E/D, м/с. */
+    const val GNSS_INNOV = "gnss_inn"
+    const val GNSS_VINN_N = "gnss_vn"
+    const val GNSS_VINN_E = "gnss_ve"
+    const val GNSS_VINN_D = "gnss_vd"
+    /** Отношение теста невязки позиции ГНСС; 1 — измерение принято / 0 — нет. */
+    const val GNSS_TR = "gnss_tr"
+    const val GNSS_FUSED = "gnss_fused"
+
     fun mag(i: Int) = if (i == 0) MAG else "mag$i"
     /** Угол между полями компаса 1 и компаса i+1, °. */
     fun magDiff(i: Int) = "magdiff$i"

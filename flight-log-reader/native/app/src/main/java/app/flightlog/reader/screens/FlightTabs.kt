@@ -478,7 +478,8 @@ fun ChartsTab(vm: AppViewModel, p: LogReader.Parsed) {
     // Стандартные каналы, затем остальные каналы формата (CSV, Геоскан: воздушная скорость, моторы, элементы АКБ…).
     // Каналы отдельных АКБ, моторов ArduPilot и составляющие EKF — в «Наложении» и сравнении АКБ.
     val available = CHANNELS.filter { it in log.series } + log.series.keys.filter { k ->
-        k !in CHANNELS && !k.startsWith("bat") && !k.startsWith("mot") && !k.startsWith("ekf") && !k.startsWith("magdiff")
+        k !in CHANNELS && !k.startsWith("bat") && !k.startsWith("mot") && !k.startsWith("ekf") && !k.startsWith("magdiff") &&
+            !k.startsWith("gps_") && !k.startsWith("gnss_") && k !in setOf(Ch.FIX, Ch.VDOP, Ch.BARO_ALT)
     }
     LaunchedEffect(p) {
         // Если стандартных каналов нет (например, в CSV), показать первые доступные.

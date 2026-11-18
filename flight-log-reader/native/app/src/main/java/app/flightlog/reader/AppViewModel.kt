@@ -32,7 +32,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 enum class Screen { LIBRARY, DECODE, FLIGHT, COMPARE, EXPORT, REPORT_CHARTS, REPORT_PARAMS, SETTINGS }
-enum class FlightTab(val title: String) { SUMMARY("Сводка"), TRACK("Трек"), CHARTS("Графики"), EVENTS("События"), PARAMS("PARM") }
+enum class FlightTab(val title: String) { SUMMARY("Сводка"), TRACK("Трек"), CHARTS("Графики"), NAV("Навигация"), EVENTS("События"), PARAMS("PARM") }
 enum class TrackBy(val title: String) { SPEED("Скорость"), ALT("Высота"), BATTERY("Батарея"), CURRENT("Ток"), MODE("Режим") }
 enum class EvFilter(val title: String) { ALL("Все"), WARN("Предупреждения"), MODES("Режимы") }
 

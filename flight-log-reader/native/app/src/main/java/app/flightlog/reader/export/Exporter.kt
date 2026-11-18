@@ -20,7 +20,7 @@ enum class ExportFormat(val title: String, val description: String, val ext: Str
 }
 
 enum class PdfSection(val title: String) {
-    SUMMARY("Сводка и борт"), TRACK("Карта трека"), CHARTS("Графики"),
+    SUMMARY("Сводка и борт"), TRACK("Карта трека"), CHARTS("Графики"), NAV("Точность навигации"),
     EVENTS("Журнал событий"), PARAMS("Параметры"),
 }
 

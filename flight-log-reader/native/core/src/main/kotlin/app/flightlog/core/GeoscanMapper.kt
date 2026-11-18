@@ -66,7 +66,10 @@ object GeoscanMapper {
                     put(Ch.PITCH, us, v(1), "Тангаж", "Orientation.pitch", "°")
                     put(Ch.YAW, us, (v(2) + 360) % 360, "Курс", "Orientation.yaw", "°")
                 }
-                "Altitude" -> if (due(msg.name, us)) put(Ch.ALT, us, v(0), "Высота", "Altitude", "м")
+                "Altitude" -> if (due(msg.name, us)) {
+                    put(Ch.ALT, us, v(0), "Высота", "Altitude", "м")
+                    put(Ch.BARO_ALT, us, v(0), "Высота по барометру", "Altitude", "м")
+                }
                 "Airspeed", "AirSpeed" -> if (due(msg.name, us)) put(AIRSPEED, us, v(0), "Воздушная скорость", "${msg.name}", "м/с")
                 "Distance" -> if (due(msg.name, us)) put(DISTANCE, us, v(0), "Расстояние до дома", "Distance", "м")
                 "NavVelocity" -> if (due(msg.name, us)) {
@@ -79,9 +82,11 @@ object GeoscanMapper {
                     if (fix >= 3 && (lat != 0.0 || lon != 0.0) && lat in -90.0..90.0 && lon in -180.0..180.0) {
                         tT.add(sec(us)); tLat.add(lat); tLon.add(lon); tAlt.add(v(2)); tSpd.add(lastSpd)
                     }
+                    put(Ch.GPS_ALT, us, v(2), "Высота ГНСС", "NavPosition.alt", "м")
                 }
                 "NavSatInfo" -> {
                     fix = v(0).toInt()
+                    put(Ch.FIX, us, v(0), "Тип решения ГНСС", "NavSatInfo.status", "")
                     put(Ch.SATS, us, v(3), "Спутники", "NavSatInfo", "")
                 }
                 "NavInformation" -> {
@@ -89,7 +94,15 @@ object GeoscanMapper {
                     put(Ch.HDOP, us, v(0), "HDOP", "NavInformation.dop", "")
                     put(Ch.SATS, us, v(3), "Спутники", "NavInformation", "")
                 }
-                "NavPrecision" -> put(Ch.HDOP, us, v(0), "HDOP", "NavPrecision.dop", "")
+                "NavPrecision" -> {
+                    put(Ch.HDOP, us, v(0), "HDOP", "NavPrecision.dop", "")
+                    // Оценки точности приёмника в миллиметрах.
+                    // 401 пишет заглушку 1 000 000 мм — такие значения пропускаем.
+                    if (f.size >= 3 && v(1) < 999_000) {
+                        put(Ch.EPH, us, v(1) / 1000, "Оценка гориз. погрешности", "NavPrecision.${f[1].name}", "м")
+                        put(Ch.EPV, us, v(2) / 1000, "Оценка верт. погрешности", "NavPrecision.${f[2].name}", "м")
+                    }
+                }
                 "PowerStatus", "AuxPowerStatus", "IntPowerStatus" -> {
                     // Основная АКБ: PowerStatus (201), AuxPowerStatus (401); IntPowerStatus — бортовое питание 101.
                     val main = msg.name != "IntPowerStatus" || !hasPowerStatus

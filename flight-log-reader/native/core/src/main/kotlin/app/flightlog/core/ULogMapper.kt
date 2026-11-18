@@ -95,7 +95,18 @@ object ULogMapper {
                 "vehicle_gps_position", "sensor_gps" -> if (sub.multiId == 0 && (gpsTopic ?: sub.name.also { gpsTopic = it }) == sub.name && due(sub, us)) {
                     put(Ch.SATS, us, v("satellites_used"), "Спутники", "${sub.name}.satellites_used", "")
                     put(Ch.HDOP, us, v("hdop"), "HDOP", "${sub.name}.hdop", "")
-                    f.field("jamming_indicator")?.let { put("gps_jam", us, ULog.value(b, o, it), "Индикатор помех GNSS", "${sub.name}.jamming_indicator", "") }
+                    put(Ch.EPH, us, v("eph"), "Оценка гориз. погрешности", "${sub.name}.eph", "м")
+                    put(Ch.EPV, us, v("epv"), "Оценка верт. погрешности", "${sub.name}.epv", "м")
+                    put(Ch.VDOP, us, v("vdop"), "VDOP", "${sub.name}.vdop", "")
+                    put(Ch.FIX, us, v("fix_type"), "Тип решения ГНСС", "${sub.name}.fix_type", "")
+                    put(Ch.GPS_ALT, us, v("altitude_msl_m").takeIf { !it.isNaN() } ?: (v("alt") / 1000), "Высота ГНСС", "${sub.name}.altitude_msl_m", "м")
+                    for ((key, field, label) in listOf(
+                        Triple(Ch.GPS_JAM, "jamming_indicator", "Индикатор помех ГНСС"),
+                        Triple(Ch.GPS_NOISE, "noise_per_ms", "Шум приёмника"),
+                        Triple(Ch.GPS_AGC, "automatic_gain_control", "АРУ приёмника"),
+                        Triple(Ch.GPS_JAM_STATE, "jamming_state", "Состояние подавления"),
+                        Triple(Ch.GPS_SPOOF, "spoofing_state", "Состояние подмены"),
+                    )) f.field(field)?.let { put(key, us, ULog.value(b, o, it), label, "${sub.name}.$field", "") }
                     val utc = v("time_utc_usec")
                     if (utcOffsetMs == null && utc > 1e15) utcOffsetMs = (utc / 1000).toLong() - (us - t0) / 1000
                 }
@@ -159,6 +170,17 @@ object ULogMapper {
                     if (rssi in 0.0..100.0) put(Ch.RSSI, us, rssi, "Сигнал RC", "input_rc.rssi", "%")
                     else if (lq in 0.0..100.0) put(Ch.RSSI, us, lq, "Сигнал RC", "input_rc.link_quality", "%")
                 }
+                "estimator_aid_src_gnss_pos" -> if (sub.multiId == 0 && due(sub, us)) {
+                    put(Ch.GNSS_INNOV, us, hypot(v("innovation[0]"), v("innovation[1]")), "Невязка EKF по позиции ГНСС", "estimator_aid_src_gnss_pos.innovation", "м")
+                    put(Ch.GNSS_TR, us, maxOf(v("test_ratio[0]"), v("test_ratio[1]")), "Test ratio позиции ГНСС", "estimator_aid_src_gnss_pos.test_ratio", "")
+                    put(Ch.GNSS_FUSED, us, v("fused"), "ГНСС принят фильтром", "estimator_aid_src_gnss_pos.fused", "")
+                }
+                "estimator_aid_src_gnss_vel" -> if (sub.multiId == 0 && due(sub, us)) {
+                    put(Ch.GNSS_VINN_N, us, v("innovation[0]"), "Невязка скорости ГНСС N", "estimator_aid_src_gnss_vel.innovation[0]", "м/с")
+                    put(Ch.GNSS_VINN_E, us, v("innovation[1]"), "Невязка скорости ГНСС E", "estimator_aid_src_gnss_vel.innovation[1]", "м/с")
+                    put(Ch.GNSS_VINN_D, us, v("innovation[2]"), "Невязка скорости ГНСС D", "estimator_aid_src_gnss_vel.innovation[2]", "м/с")
+                }
+                "vehicle_air_data" -> if (due(sub, us)) put(Ch.BARO_ALT, us, v("baro_alt_meter"), "Высота по барометру", "vehicle_air_data.baro_alt_meter", "м")
                 "vehicle_magnetometer" -> if (sub.multiId == 0 && due(sub, us)) {
                     val x = v("magnetometer_ga[0]"); val y = v("magnetometer_ga[1]"); val z = v("magnetometer_ga[2]")
                     put(Ch.MAG, us, sqrt(x * x + y * y + z * z) * 1000, "Поле компаса", "vehicle_magnetometer", "мГс")
@@ -223,7 +245,7 @@ object ULogMapper {
             series[k] = Series(k, label, src, unit, c.t.toFloatArray(), c.v.toFloatArray())
         }
         // Неиспользуемые выходы и пустые каналы (всё по нулям) не показываем.
-        series.keys.filter { it.startsWith("mout") || it.startsWith("ice_") || it == "gps_jam" }.forEach { k ->
+        series.keys.filter { it.startsWith("mout") || it.startsWith("ice_") }.forEach { k ->
             series[k]?.let { if (it.min == 0f && it.max == 0f) series.remove(k) }
         }
 

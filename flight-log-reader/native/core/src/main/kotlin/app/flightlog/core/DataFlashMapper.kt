@@ -105,6 +105,25 @@ object DataFlashMapper {
         add(Ch.CLIP, "Клиппинг IMU0", "VIBE", if (vibe?.has("Clip") == true) "Clip" else "Clip0", "", vibe)
         add(Ch.SATS, "Спутники", "GPS", "NSats", "", gpsTab)
         add(Ch.HDOP, "HDOP", "GPS", "HDop", "", gpsTab)
+        // Точность навигации: тип решения, высота ГНСС и баро, оценки точности приёмника (GPA), невязки EKF (XKF3).
+        add(Ch.FIX, "Тип решения ГНСС", "GPS", "Status", "", gpsTab)
+        add(Ch.GPS_ALT, "Высота ГНСС", "GPS", "Alt", "м", gpsTab)
+        t["GPA"]?.let { firstInstance(it) }?.let { gpa ->
+            add(Ch.EPH, "Оценка гориз. погрешности", "GPA", "HAcc", "м", gpa)
+            add(Ch.EPV, "Оценка верт. погрешности", "GPA", "VAcc", "м", gpa)
+            add(Ch.VDOP, "VDOP", "GPA", "VDop", "", gpa)
+        }
+        t["BARO"]?.let { firstInstance(it) }?.let { add(Ch.BARO_ALT, "Высота по барометру", "BARO", "Alt", "м", it) }
+        t["XKF3"]?.let { x -> if (x.has("C")) filterInstance(x, "C", x.num("C").minOrNull() ?: 0.0) else x }?.let { x ->
+            if (x.has("IPN") && x.has("IPE") && x.rows > 0) {
+                val n = x.float("IPN"); val e = x.float("IPE")
+                series[Ch.GNSS_INNOV] = Series(Ch.GNSS_INNOV, "Невязка EKF по позиции ГНСС", "XKF3.IPN,IPE", "м", time(x),
+                    FloatArray(n.size) { kotlin.math.hypot(n[it], e[it]) })
+            }
+            add(Ch.GNSS_VINN_N, "Невязка скорости ГНСС N", "XKF3", "IVN", "м/с", x)
+            add(Ch.GNSS_VINN_E, "Невязка скорости ГНСС E", "XKF3", "IVE", "м/с", x)
+            add(Ch.GNSS_VINN_D, "Невязка скорости ГНСС D", "XKF3", "IVD", "м/с", x)
+        }
         add(Ch.ROLL, "Крен", "ATT", "Roll", "°", t["ATT"])
         add(Ch.PITCH, "Тангаж", "ATT", "Pitch", "°", t["ATT"])
         add(Ch.YAW, "Курс", "ATT", "Yaw", "°", t["ATT"])

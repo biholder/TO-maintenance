@@ -189,6 +189,12 @@ object Analyzer {
         // Компас, EKF, моторы, сопротивление АКБ, радиоканал.
         Checks(log, issues, healthy).runAll()
 
+        // Точность навигации: подробности — во вкладке «Навигация».
+        NavAccuracy.analyze(log)?.let { nav ->
+            if (nav.rating == NavAccuracy.Rating.POOR) issues += Issue(Severity.WARN, "Низкая точность навигации",
+                nav.takeoff ?: 0f, nav.landing ?: log.duration, nav.ratingText + " Подробнее — вкладка «Навигация».", Ch.EPH)
+        }
+
         // Прочие ошибки ERR.
         val handled = setOf(6, 7, 11)
         val errs = log.events.filter { it.source == "ERR" && !it.detail.endsWith("ECode 0") }

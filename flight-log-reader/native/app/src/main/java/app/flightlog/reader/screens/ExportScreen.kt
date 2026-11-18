@@ -184,7 +184,7 @@ private fun Thumbnail(sections: Set<PdfSection>) {
                             y += 16f
                         }
                     }
-                    PdfSection.EVENTS, PdfSection.PARAMS -> {
+                    PdfSection.EVENTS, PdfSection.PARAMS, PdfSection.NAV -> {
                         for (i in 0 until 3) { drawRect(dv, Offset(0f, y), Size(w * (0.9f - i * 0.15f), 2.5f)); y += 5f }
                         y += 4f
                     }

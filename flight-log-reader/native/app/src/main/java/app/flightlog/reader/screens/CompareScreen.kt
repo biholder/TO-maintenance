@@ -92,6 +92,29 @@ fun CompareScreen(vm: AppViewModel) {
                 }
             }
 
+            // Точность навигации в полёте — для сравнения, например, с антенной решёткой и без неё.
+            val navA = remember(a) { app.flightlog.core.NavAccuracy.analyze(a.second.log) }
+            val navB = remember(b) { app.flightlog.core.NavAccuracy.analyze(b.second.log) }
+            if (navA != null || navB != null) {
+                Kicker("Навигация в полёте", Modifier.padding(top = 22.dp, bottom = 6.dp))
+                listOf<Pair<String, (app.flightlog.core.NavAccuracy.Report) -> String>>(
+                    "Оценка" to { it.rating.title },
+                    "Спутники, медиана" to { r -> r.flight?.sats?.let { num(it.median, 0) } ?: "—" },
+                    "eph, медиана / 95%, м" to { r -> r.flight?.eph?.let { "${num(it.median, 1)} / ${num(it.p95, 1)}" } ?: "—" },
+                    "epv, медиана / 95%, м" to { r -> r.flight?.epv?.let { "${num(it.median, 1)} / ${num(it.p95, 1)}" } ?: "—" },
+                    "HDOP, медиана" to { r -> r.flight?.hdop?.let { num(it.median, 2) } ?: "—" },
+                    "С поправками" to { r -> navShare(r.flight?.aided) },
+                    "Невязка EKF, медиана / 95%, м" to { r -> r.innov?.let { "${num(it.median, 1)} / ${num(it.p95, 1)}" } ?: "—" },
+                    "Эпизоды ухудшения" to { r -> "${r.episodes.size}" },
+                ).forEach { (label, get) ->
+                    Row(Modifier.fillMaxWidth().bottomRule(tk.dv).padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                        T(label, Type.body(14.sp), modifier = Modifier.weight(1.6f))
+                        T(navA?.let(get) ?: "—", Type.cond(16.sp), modifier = Modifier.weight(1f))
+                        T(navB?.let(get) ?: "—", Type.cond(16.sp), tk.mu, Modifier.weight(1f))
+                    }
+                }
+            }
+
             val diffs = remember(a, b) { Compare.paramDiffs(a.second.log.params, b.second.log.params) }
             Kicker("Различия в параметрах · ${diffs.size}", Modifier.padding(top = 22.dp, bottom = 6.dp))
             if (diffs.isEmpty()) T("Параметры совпадают", Type.body(14.sp), tk.mu)
