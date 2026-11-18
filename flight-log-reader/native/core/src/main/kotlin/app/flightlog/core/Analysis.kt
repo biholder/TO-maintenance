@@ -127,17 +127,28 @@ object Analyzer {
                 for (i in sats.indexAt(a)..sats.indexAt(b)) m = minOf(m, sats.values[i])
                 return m.toInt()
             }
+            fun maxHdop(a: Float, b: Float): Float? = hdop?.let { h ->
+                var m = 0f
+                for (i in h.indexAt(a)..h.indexAt(b)) m = maxOf(m, h.values[i])
+                m
+            }
+            /** Что ухудшилось: спутники или HDOP. */
+            fun what(a: Float, b: Float, minS: Int): String {
+                val hd = maxHdop(a, b)
+                return if (minS >= satsMin && hd != null && hd > hdopMax) "HDOP поднимался до ${fmt1(hd)} (порог ${fmt1(hdopMax)}) при $minS спутниках"
+                else "число спутников падало до $minS"
+            }
             if (iv.size > 3) {
                 // Много эпизодов подряд — одна сводная проблема, а не десятки карточек.
                 val total = iv.sumOf { (a, b) -> (b - a).toDouble() }.toInt()
                 val minS = iv.minOf { (a, b) -> minSats(a, b) }
                 issues += Issue(Severity.WARN, "Деградация GPS", iv.first().first, iv.last().second,
                     "${iv.size} ${plural(iv.size, "эпизод", "эпизода", "эпизодов")} общей длительностью ${total} с, " +
-                        "число спутников падало до $minS. Возможны помехи (подавление GNSS), экранирование антенны " +
+                        "${what(iv.first().first, iv.last().second, minS)}. Возможны помехи (подавление GNSS), экранирование антенны " +
                         "или помехи от бортовой электроники.", Ch.SATS)
             } else for ((a, b) in iv) {
                 issues += Issue(Severity.WARN, "Деградация GPS", a, b,
-                    "Число спутников падало до ${minSats(a, b)}" +
+                    what(a, b, minSats(a, b)).replaceFirstChar { it.uppercase() } +
                         (if (gpsErr.any { it.time in a - 2..b + 2 }) ", зафиксирован GPS glitch" else "") +
                         ". Проверьте помехи от бортовой электроники и экранирование приёмника.", Ch.SATS)
             }

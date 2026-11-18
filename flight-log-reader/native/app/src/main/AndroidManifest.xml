@@ -24,7 +24,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- «Открыть с помощью»: логи .csv / .txt / .log / .bin / .tlog из файлов, Telegram, браузера. -->
+            <!-- «Открыть с помощью»: логи .csv / .txt / .log / .bin / .tlog / .ulg из файлов, Telegram, браузера. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

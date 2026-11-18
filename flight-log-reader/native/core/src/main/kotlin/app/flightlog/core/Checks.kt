@@ -217,6 +217,19 @@ internal class Checks(private val log: FlightLog, private val issues: MutableLis
     // ── События ──
 
     fun events() {
+        // PX4: ошибки и предупреждения автопилота (сообщения уровня WARNING и выше) — одной проблемой со списком.
+        if (log.format == LogFormat.ULOG) {
+            val bad = log.events.filter { it.source == "MSG" && it.detail in setOf("EMERGENCY", "ALERT", "CRITICAL", "ERROR", "WARNING") }
+            if (bad.isNotEmpty()) {
+                val crit = bad.any { it.detail != "WARNING" && it.detail != "ERROR" }
+                val top = bad.groupingBy { it.title }.eachCount().entries.sortedByDescending { it.value }.take(5)
+                issues += Issue(if (crit) Severity.CRITICAL else Severity.WARN, "Предупреждения автопилота",
+                    bad.first().time, bad.last().time + 1,
+                    top.joinToString("; ") { (t, c) -> t.replace(Regex("^\\[[^]]+]\\s*"), "") + if (c > 1) " (×$c)" else "" } +
+                        ". Полный список — в журнале событий.", null)
+                if (bad.any { it.title.contains("compass", ignoreCase = true) || it.title.contains("mag", ignoreCase = true) }) healthy.remove("Компас")
+            }
+        }
         val stops = log.events.filter { it.source == "EV" && it.detail == "EV 54" && inFlight(it.time) }
         if (stops.isNotEmpty()) issues += Issue(Severity.CRITICAL, "Аварийная остановка моторов", stops.first().time, stops.last().time + 1,
             "В полёте сработала аварийная остановка моторов (переключатель Motor E-Stop или команда GCS).", null)

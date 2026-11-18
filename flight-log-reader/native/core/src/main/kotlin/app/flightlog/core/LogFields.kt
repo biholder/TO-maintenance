@@ -24,7 +24,7 @@ object LogFields {
     }
 
     fun supported(format: LogFormat) =
-        format == LogFormat.DATAFLASH || format == LogFormat.DATAFLASH_TEXT || format == LogFormat.GEOSCAN
+        format == LogFormat.DATAFLASH || format == LogFormat.DATAFLASH_TEXT || format == LogFormat.GEOSCAN || format == LogFormat.ULOG
 
     fun isField(key: String) = key.startsWith(PREFIX)
 
@@ -52,6 +52,7 @@ object LogFields {
      */
     fun catalog(file: File, format: LogFormat): List<Message> {
         if (format == LogFormat.GEOSCAN) return geoscanCatalog(file)
+        if (format == LogFormat.ULOG) return ulogCatalog(file)
         val r = read(file, format, null, CATALOG_RATE_HZ)
         return r.tables.values.filter { it.name !in SKIP && it.has("TimeUS") && it.rows > 0 }.map { tab ->
             val ic = instanceColumn(tab)
@@ -72,6 +73,7 @@ object LogFields {
         val refs = keys.mapNotNull { parse(it) }
         if (refs.isEmpty()) return emptyMap()
         if (format == LogFormat.GEOSCAN) return geoscanExtract(file, refs, timeOriginUs)
+        if (format == LogFormat.ULOG) return ulogExtract(file, refs, timeOriginUs)
         val r = read(file, format, refs.map { it.message }.toSet(), DataFlashParser.DEFAULT_RATE_HZ)
         val t0 = timeOriginUs ?: r.tables.values.mapNotNull { it.numeric["TimeUS"]?.takeIf { l -> l.size > 0 }?.get(0) }.minOrNull() ?: 0.0
         val out = LinkedHashMap<String, Series>()
@@ -102,6 +104,47 @@ object LogFields {
     /** Геоскан: поле «n» — номер устройства (мотора), по нему экземпляры. */
     private fun geoscanInstance(msg: GeoscanLog.Message, d: java.nio.ByteBuffer): Int? =
         msg.field("n")?.let { GeoscanLog.value(d, it).toInt() }
+
+    /** PX4 ULog: топики с данными; экземпляры — multi_id. */
+    private fun ulogCatalog(file: File): List<Message> = mapped(file) { buf ->
+        val log = ULog(buf)
+        val seen = HashMap<String, MutableSet<Int>>()
+        val fields = HashMap<String, List<String>>()
+        log.scan { sub, _, _, _ ->
+            if (seen[sub.name]?.contains(sub.multiId) != true) {
+                seen.getOrPut(sub.name) { HashSet() } += sub.multiId
+                fields[sub.name] = sub.format.fields.map { it.name }.filter { it != "timestamp" && it != "timestamp_sample" }
+            }
+            true
+        }
+        seen.map { (name, inst) ->
+            val ids = inst.sorted()
+            Message(name, if (ids.size > 1 || ids.firstOrNull() != 0) ids else emptyList(), fields.getValue(name))
+        }.filter { it.fields.isNotEmpty() }.sortedBy { it.name }
+    }
+
+    private fun ulogExtract(file: File, refs: List<Ref>, timeOriginUs: Double?): Map<String, Series> = mapped(file) { buf ->
+        val byMsg = refs.groupBy { it.message }
+        val cols = HashMap<String, Pair<DoubleList, DoubleList>>()
+        val lastKept = HashMap<Int, Long>()
+        var t0 = timeOriginUs
+        ULog(buf).scan { sub, us, b, o ->
+            if (t0 == null && us > 0) t0 = us.toDouble()
+            val want = byMsg[sub.name] ?: return@scan true
+            val last = lastKept[sub.msgId]
+            if (last != null && us >= last && us - last < 80_000) return@scan true
+            lastKept[sub.msgId] = us
+            for (ref in want) {
+                if ((ref.instance ?: 0) != sub.multiId) continue
+                val f = sub.format.field(ref.field) ?: continue
+                val c = cols.getOrPut(ref.key) { DoubleList() to DoubleList() }
+                c.first.add((us - (t0 ?: 0.0)) / 1e6); c.second.add(ULog.value(b, o, f))
+            }
+            true
+        }
+        refs.mapNotNull { ref -> cols[ref.key]?.let { (t, v) -> ref.key to Series(ref.key, ref.label, ref.label, "", t.toFloatArray(), v.toFloatArray()) } }
+            .toMap(LinkedHashMap())
+    }
 
     private fun geoscanCatalog(file: File): List<Message> = mapped(file) { buf ->
         val log = GeoscanLog(buf)

@@ -235,7 +235,7 @@ object GeoscanMapper {
         )
     }
 
-    const val AIRSPEED = "aspd"
+    const val AIRSPEED = Ch.ASPD
     const val DISTANCE = "dist"
 
     /** Номера режимов UavMode; названий в журнале нет. */

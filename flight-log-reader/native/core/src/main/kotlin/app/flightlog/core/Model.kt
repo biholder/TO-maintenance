@@ -8,6 +8,7 @@ enum class LogFormat(val ext: String, val source: String) {
     CSV("csv", "CSV"),
     DJI("txt", "DJI"),
     GEOSCAN("bin", "Геоскан"),
+    ULOG("ulg", "PX4"),
 }
 
 /** Временной ряд одного канала: время в секундах от начала лога. */
@@ -134,6 +135,8 @@ object Ch {
     const val YAW = "yaw"
     const val CLIMB = "climb"
     const val REM = "rem"
+    /** Воздушная скорость, м/с. */
+    const val ASPD = "aspd"
     /** Газ (выход регулятора тяги), %. */
     const val THR = "thr"
     /** Уровень сигнала приёмника, %. */

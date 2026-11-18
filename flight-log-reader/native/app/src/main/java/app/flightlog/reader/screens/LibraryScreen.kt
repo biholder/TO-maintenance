@@ -151,8 +151,8 @@ private fun EmptyLibrary(vm: AppViewModel, nothing: Boolean) {
         Icon(Icons.Drone, tk.mu, size = 40.dp)
         T(if (nothing) "Библиотека пуста" else "Нет логов этого источника", Type.h2, modifier = Modifier.padding(top = 14.dp))
         T(
-            if (nothing) "Импортируйте .bin или .log (ArduPilot), журнал Геоскан .bin, .tlog (MAVLink), DJI FlightRecord .txt или таблицу .csv с телефона — или откройте демо-полёты, чтобы посмотреть возможности."
-            else "Поддерживаются ArduPilot DataFlash и телеметрия MAVLink. PX4 ULog, DJI и Blackbox — в работе.",
+            if (nothing) "Импортируйте .bin или .log (ArduPilot), .ulg (PX4), журнал Геоскан .bin, .tlog (MAVLink), DJI FlightRecord .txt или таблицу .csv с телефона — или откройте демо-полёты, чтобы посмотреть возможности."
+            else "Поддерживаются ArduPilot, PX4 ULog, Геоскан, MAVLink, DJI и CSV. Blackbox — в работе.",
             Type.body(14.sp), tk.mu, Modifier.padding(top = 6.dp),
         )
         if (nothing) SecondaryButton("Открыть демо-полёты", { vm.importDemo() }, Modifier.padding(top = 18.dp), height = 44.dp)

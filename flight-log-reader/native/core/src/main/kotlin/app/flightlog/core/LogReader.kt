@@ -44,6 +44,13 @@ object LogReader {
             "Журнал событий: режимы, события, парашют",
             "Диагностика полёта",
         )
+        LogFormat.ULOG -> listOf(
+            "Чтение файла",
+            "Разбор PX4 ULog: форматы, параметры, подписки и записи",
+            "Сборка каналов: ориентация, позиция, GPS, батарея, EKF, моторы",
+            "Журнал событий: режимы, взведение, failsafe, сообщения",
+            "Диагностика полёта",
+        )
         LogFormat.TLOG -> listOf(
             "Чтение файла",
             "Разбор пакетов MAVLink v1/v2, проверка CRC",
@@ -57,6 +64,7 @@ object LogReader {
         val ext = name.substringAfterLast('.', "").lowercase()
         if (head.isDataFlash()) return LogFormat.DATAFLASH
         if (GeoscanLog.looksLike(head)) return LogFormat.GEOSCAN
+        if (ULog.looksLike(head)) return LogFormat.ULOG
         if (TextLogParser.looksLikeText(head)) return LogFormat.DATAFLASH_TEXT
         if (ext == "txt" && DjiLog.looksLikeDji(head)) return LogFormat.DJI
         if (ext == "tlog") return LogFormat.TLOG
@@ -115,7 +123,7 @@ object LogReader {
     }
 
     private fun unknown() = LogParseException(
-        "Неизвестный формат файла. Поддерживаются ArduPilot .bin, текстовый .log (Mission Planner), MAVLink .tlog, журналы Геоскан .bin, DJI FlightRecord .txt и CSV",
+        "Неизвестный формат файла. Поддерживаются ArduPilot .bin, текстовый .log (Mission Planner), MAVLink .tlog, журналы Геоскан .bin, PX4 ULog .ulg, DJI FlightRecord .txt и CSV",
     )
 
     private fun parse(
@@ -149,6 +157,12 @@ object LogReader {
                 val dji = DjiLog(buffer!!)
                 val l = DjiMapper.map(name, size, dji, djiKeychains, progress)
                 listener?.onStage(1, "v${dji.version} · ${l.messageCount} записей")
+                listener?.onStage(2, null)
+                l
+            }
+            LogFormat.ULOG -> {
+                val l = ULogMapper.map(name, size, buffer!!, progress)
+                listener?.onStage(1, "${l.messageCount} записей")
                 listener?.onStage(2, null)
                 l
             }

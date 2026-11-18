@@ -63,6 +63,10 @@ private fun presets(log: FlightLog): List<Pair<String, List<String>>> {
         Motors.motors(log).map { Motors.key(it) }.takeIf { it.size > 1 }?.let { "Моторы" to it },
         s.keys.filter { it.startsWith("rpm") }.sorted().takeIf { it.size > 1 }?.let { "Обороты моторов" to it },
         s.keys.filter { it.startsWith("mcur") }.sorted().takeIf { it.size > 1 }?.let { "Токи моторов" to it },
+        s.keys.filter { it.startsWith("mout") }.sortedBy { it.removePrefix("mout").toIntOrNull() }.takeIf { it.size > 1 }
+            ?.let { "Выходы моторов" to it },
+        has("ice_rpm", "ice_cht", "ice_egt", "ice_thr").takeIf { it.size > 1 }?.let { "ДВС" to it },
+        has(Ch.ASPD, Ch.SPD, Ch.ALT).takeIf { it.size == 3 }?.let { "Скорости" to it },
         s.keys.filter { it.startsWith("cell") }.sortedBy { it.removePrefix("cell").toIntOrNull() }.takeIf { it.size > 1 }
             ?.let { "Элементы АКБ" to it },
         has(Ch.MAG, Ch.CURR).takeIf { it.size == 2 }?.let { "Компас и ток" to it },

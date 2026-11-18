@@ -436,6 +436,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         LogFormat.TLOG -> "MAVLink telemetry · ${parsed.log.vehicle.autopilot}"
                         LogFormat.CSV -> "Таблица CSV · ${parsed.log.vehicle.autopilot} · ${parsed.log.series.size} каналов"
                         LogFormat.DJI -> "DJI FlightRecord · ${parsed.log.vehicle.frame.ifEmpty { parsed.log.vehicle.board }}"
+                        LogFormat.ULOG -> "PX4 ULog · ${parsed.log.vehicle.firmware.ifEmpty { "версия не определена" }}" +
+                            parsed.log.vehicle.board.takeIf { it.isNotEmpty() }?.let { " · $it" }.orEmpty()
                         LogFormat.GEOSCAN -> "Журнал Геоскан · ${parsed.log.vehicle.vehicleType.lowercase()}" +
                             parsed.log.vehicle.firmware.takeIf { it.isNotEmpty() }?.let { " · $it" }.orEmpty()
                     },
