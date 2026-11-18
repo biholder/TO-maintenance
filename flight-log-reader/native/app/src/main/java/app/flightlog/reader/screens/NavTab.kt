@@ -151,20 +151,9 @@ fun NavTab(vm: AppViewModel, p: LogReader.Parsed) {
         // Графики.
         Kicker("Графики", Modifier.padding(bottom = 6.dp))
         T("Касание — перемотка, удержание — на весь экран", Type.body(12.sp), tk.mu)
-        for (k in listOf(Ch.SATS, Ch.EPH, Ch.EPV, Ch.GNSS_INNOV, Ch.HDOP)) key(k) {
-            val s = log.series[k] ?: return@key
-            val widthPx = remember { mutableIntStateOf(400) }
-            val data = remember(s, widthPx.intValue) { chartData(s, log.duration, (widthPx.intValue / 2).coerceAtLeast(50)) }
-            Column(Modifier.padding(top = 8.dp).fillMaxWidth().hairline(tk.dv).padding(10.dp)) {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    T(s.label, Type.body(14.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
-                    T(num(s.valueAt(vm.tSec), if (k == Ch.SATS) 0 else 1) + if (s.unit.isNotEmpty()) " ${s.unit}" else "", Type.cond(17.sp))
-                }
-                Box(Modifier.padding(top = 6.dp).fillMaxWidth().onSizeChanged { widthPx.intValue = it.width }) {
-                    SeriesChart(data, vm.t, tk.ac, tk.ac1, tk.tx, null, tk.cr, { vm.t = it }, height = 64.dp, bands = bands,
-                        onLongPress = { vm.fullChart = FullChart.Channel(k) })
-                }
-            }
+        for (k in listOf(Ch.SATS, Ch.EPH, Ch.EPV, Ch.GNSS_INNOV, Ch.HDOP)) {
+            val s = log.series[k] ?: continue
+            key(k) { NavChart(vm, log.duration, k, s, bands) }
         }
         if (r.ephBySats.size >= 2) {
             Kicker("Точность по числу спутников (полёт)", Modifier.padding(top = 20.dp, bottom = 6.dp))
@@ -194,6 +183,23 @@ fun NavTab(vm: AppViewModel, p: LogReader.Parsed) {
             summary()
             Box(Modifier.height(20.dp))
             details()
+        }
+    }
+}
+
+/** Мини-график канала навигации: касание — перемотка, удержание — на весь экран. */
+@Composable
+private fun NavChart(vm: AppViewModel, duration: Float, k: String, s: app.flightlog.core.Series, bands: ModeBands) {
+    val widthPx = remember { mutableIntStateOf(400) }
+    val data = remember(s, widthPx.intValue) { chartData(s, duration, (widthPx.intValue / 2).coerceAtLeast(50)) }
+    Column(Modifier.padding(top = 8.dp).fillMaxWidth().hairline(tk.dv).padding(10.dp)) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            T(s.label, Type.body(14.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
+            T(num(s.valueAt(vm.tSec), if (k == Ch.SATS) 0 else 1) + if (s.unit.isNotEmpty()) " ${s.unit}" else "", Type.cond(17.sp))
+        }
+        Box(Modifier.padding(top = 6.dp).fillMaxWidth().onSizeChanged { widthPx.intValue = it.width }) {
+            SeriesChart(data, vm.t, tk.ac, tk.ac1, tk.tx, null, tk.cr, { vm.t = it }, height = 64.dp, bands = bands,
+                onLongPress = { vm.fullChart = FullChart.Channel(k) })
         }
     }
 }
